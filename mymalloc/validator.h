@@ -49,6 +49,9 @@ typedef struct range_t {
 // we create a range struct for this block and add it to the range list.
 static int add_range(const malloc_impl_t *impl, range_t **ranges, char *lo,
     int size, int tracenum, int opnum) {
+  // check lo and size against all range_t in ranges for overlap. 
+  // check for word alignment IS_ALIGNED(lo)//lo % 8 == 0
+
   //  char *hi = lo + size - 1;
   //  range_t *p = NULL;
 
@@ -59,16 +62,38 @@ static int add_range(const malloc_impl_t *impl, range_t **ranges, char *lo,
 
   // Payload addresses must be R_ALIGNMENT-byte aligned
   // TODO(project3): YOUR CODE HERE
+  // impl->malloc()
+  assert(IS_ALIGNED(lo));
 
   // The payload must lie within the extent of the heap
   // TODO(project3): YOUR CODE HERE
+  assert(lo + size - 1 <= impl->heap_hi());
 
   // The payload must not overlap any other payloads
   // TODO(project3): YOUR CODE HERE
+  if (*ranges) {
+    range_t * next = *ranges;
+    char * lo_a = lo;
+    char * hi_a = (lo + size - 1);
+    while (1) {
+      assert(hi_a < next->lo || lo_a > next->hi);
+      if(!(next->next))
+        break;
+      next = next->next;
+    } // next is valid and the last element in the linked list
 
-  // Everything looks OK, so remember the extent of this block by creating a
-  // range struct and adding it the range list.
-  // TODO(project3):  YOUR CODE HERE
+    // Everything looks OK, so remember the extent of this block by creating a
+    // range struct and adding it the range list.
+    // TODO(project3):  YOUR CODE HERE
+    range_t *block = malloc(sizeof(range_t));
+    *block = (range_t) {.lo = lo, .hi = lo + size - 1, .next = NULL};
+    next->next = block;
+  } else {
+    // printf("in else");// check this block is only hit once per trace.
+    range_t *block = malloc(sizeof(range_t));
+    *block = (range_t) {.lo = lo, .hi = lo + size - 1, .next = NULL};
+    *ranges = block;
+  }
 
   return 1;
 }
@@ -82,6 +107,30 @@ static void remove_range(range_t **ranges, char *lo) {
   // payload and remove it.  Remember to properly handle the case where the
   // payload is in the first node, and to free the node after unlinking it.
   // TODO(project3): YOUR CODE HERE
+  if (!lo){
+    return;
+  } else if (!ranges) {
+    assert(0);
+  } else {
+    range_t * next = *ranges;
+    range_t * prev = NULL;
+    while (1) {
+      if (next->lo == lo) { //delete node
+        if (!prev)
+          *ranges = next->next;
+        else
+          prev->next = next->next;
+        free(next);
+        break;
+      }
+      if(!(next->next)){
+        assert(0);
+        break; // no match found: should never reach here
+      }
+      prev = next;
+      next = next->next;
+    } // next is valid and the last element in the linked list
+  }
 }
 
 // clear_ranges - free all of the range records for a trace
@@ -139,6 +188,11 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
         // Fill the allocated region with some unique data that you can check
         // for if the region is copied via realloc.
         // TODO(project3): YOUR CODE HERE
+        char * q = p;// = p-1;
+        for (int i = 0; i < size; i++) {
+          // q = q + 1;
+          q[i] = 'A';//0b0; // TODO: dynamic char generation
+        }
 
         // Remember region
         trace->blocks[index] = p;
@@ -149,6 +203,7 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
 
         // Call the student's realloc
         oldp = trace->blocks[index];
+        char *z = p;
         if ((newp = (char *) impl->realloc(oldp, size)) == NULL) {
           malloc_error(tracenum, i, "impl realloc failed.");
           return 0;
@@ -168,6 +223,16 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
         if (size < oldsize)
           oldsize = size;
         // TODO(project3): YOUR CODE HERE
+        char * qp = newp;// = newp-1;
+        for (int i = 0; i < oldsize; i++) {
+          // qp = qp + 1;
+          assert(qp[i] == 'A'/*0b0*/);
+        }
+
+        // Write chars to expanded region.
+        for (i = oldsize; i < size; i++) {
+          qp[i] = 'A';
+        }
 
         // Remember region
         trace->blocks[index] = newp;
