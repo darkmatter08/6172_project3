@@ -127,7 +127,7 @@ void * my_malloc(size_t size) {
   } else {
     // We store the size of the block we've allocated in the first
     // SIZE_T_SIZE bytes.
-    *(size_t*)p = size //aligned_size-SIZE_T_SIZE;
+    *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;
 
     // Then, we return a pointer to the rest of the block of memory,
     // which is at least size bytes long.  We have to cast to uint8_t
@@ -137,7 +137,7 @@ void * my_malloc(size_t size) {
     // casting advances the pointer by SIZE_T_SIZE bytes.
     void * ret = (void *)((char *)p + SIZE_T_SIZE);
     assert(ret <= my_heap_hi());
-    assert(((uintptr_t)ret & 0xFFFF000000000000) != 0x4242000000000000);
+    assert(((uintptr_t) ret & 0xFFFF000000000000) != 0x4242000000000000);
     return (void *)((char *)p + SIZE_T_SIZE);
   }
 }
