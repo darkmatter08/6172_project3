@@ -145,8 +145,9 @@ void * my_malloc(size_t size) {
 // free - Freeing a block does nothing.
 void my_free(void *ptr) {
   void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
+  // assert(ptr_header == ALIGN((size_t) ((char*)ptr) - SIZE_T_SIZE));
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
-  assert(size_block >= sizeof(free_list_t));
+  // assert(size_block >= sizeof(free_list_t));
   *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list, .size = size_block - SIZE_T_SIZE};
   free_list = ptr_header;
   //&free_list to get location of free memory
