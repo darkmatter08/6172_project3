@@ -191,7 +191,7 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
         char * q = p;// = p-1;
         for (int i = 0; i < size; i++) {
           // q = q + 1;
-          q[i] = 'A';//0b0; // TODO: dynamic char generation
+          q[i] = 'B';//0b0; // TODO: dynamic char generation
         }
 
         // Remember region
@@ -226,12 +226,12 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
         char * qp = newp;// = newp-1;
         for (int i = 0; i < oldsize; i++) {
           // qp = qp + 1;
-          assert(qp[i] == 'A'/*0b0*/);
+          assert(qp[i] == 'B'/*0b0*/);
         }
 
         // Write chars to expanded region.
         for (i = oldsize; i < size; i++) {
-          qp[i] = 'A';
+          qp[i] = 'B';
         }
 
         // Remember region
