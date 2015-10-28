@@ -116,10 +116,11 @@ void * my_malloc(size_t size) {
     prev = next;
     next = next->next;
   } // next is valid and the last element in the linked list
-  int need_update = !p;
-
-  if (!p)
+  // checks whether we need a mem_sbrk
+  if (!p){
     p = mem_sbrk(aligned_size);
+    *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
+  }
 
   if (p == (void *)-1) { // TODO: move check as part of mem_sbrk only
     // Whoops, an error of some sort occurred.  We return NULL to let
@@ -128,8 +129,8 @@ void * my_malloc(size_t size) {
   } else {
     // We store the size of the block we've allocated in the first
     // SIZE_T_SIZE bytes.
-    if (need_update)
-      *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;
+    //if (need_update)
+    //*(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
 
     // Then, we return a pointer to the rest of the block of memory,
     // which is at least size bytes long.  We have to cast to uint8_t
