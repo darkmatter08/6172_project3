@@ -44,6 +44,13 @@
 // The smallest aligned size that will hold a size_t value.
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+typedef struct free_list_t {
+  size_t size; 
+  struct free_list_t* next;
+} free_list_t;
+
+free_list_t * free_list;
+
 // check - This checks our invariant that the size_t header before every
 // block points to either the beginning of the next block, or the end of the
 // heap.
@@ -72,6 +79,7 @@ int my_check() {
 // calls are made.  Since this is a very simple implementation, we just
 // return success.
 int my_init() {
+  free_list = NULL;
   return 0;
 }
 
@@ -83,19 +91,43 @@ void * my_malloc(size_t size) {
   // one example of a place where this can come in handy.
   int aligned_size = ALIGN(size + SIZE_T_SIZE);
 
+  void *p = NULL;
   // Expands the heap by the given number of bytes and returns a pointer to
   // the newly-allocated area.  This is a slow call, so you will want to
   // make sure you don't wind up calling it on every malloc.
-  void *p = mem_sbrk(aligned_size);
+  free_list_t * next = free_list;
+  free_list_t * prev = NULL;
 
-  if (p == (void *)-1) {
+  while (next) {
+    if(next->size + SIZE_T_SIZE >= aligned_size) {
+      // pop from linked list
+      if(prev) {
+        prev->next = next->next;
+      } else { // first node removed
+        free_list = next->next;
+      }
+      p = next;
+      break;
+    }
+
+    if(!(next->next)){
+      break; // no match found
+    }
+    prev = next;
+    next = next->next;
+  } // next is valid and the last element in the linked list
+
+  if (!p)
+    p = mem_sbrk(aligned_size);
+
+  if (p == (void *)-1) { // TODO: move check as part of mem_sbrk only
     // Whoops, an error of some sort occurred.  We return NULL to let
     // the client code know that we weren't able to allocate memory.
     return NULL;
   } else {
     // We store the size of the block we've allocated in the first
     // SIZE_T_SIZE bytes.
-    *(size_t*)p = size;
+    *(size_t*)p = size //aligned_size-SIZE_T_SIZE;
 
     // Then, we return a pointer to the rest of the block of memory,
     // which is at least size bytes long.  We have to cast to uint8_t
@@ -103,12 +135,21 @@ void * my_malloc(size_t size) {
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
+    void * ret = (void *)((char *)p + SIZE_T_SIZE);
+    assert(ret <= my_heap_hi());
+    assert(((uintptr_t)ret & 0xFFFF000000000000) != 0x4242000000000000);
     return (void *)((char *)p + SIZE_T_SIZE);
   }
 }
 
 // free - Freeing a block does nothing.
 void my_free(void *ptr) {
+  void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
+  size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
+  assert(size_block >= sizeof(free_list_t));
+  *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list, .size = size_block - SIZE_T_SIZE};
+  free_list = ptr_header;
+  //&free_list to get location of free memory
 }
 
 // realloc - Implemented simply in terms of malloc and free
