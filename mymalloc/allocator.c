@@ -117,10 +117,10 @@ void * my_malloc(size_t size) {
     next = next->next;
   } // next is valid and the last element in the linked list
   // checks whether we need a mem_sbrk
-  if (!p){
+  int need_mem_sbrk = !p;
+  if (need_mem_sbrk)
     p = mem_sbrk(aligned_size);
-    *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
-  }
+
 
   if (p == (void *)-1) { // TODO: move check as part of mem_sbrk only
     // Whoops, an error of some sort occurred.  We return NULL to let
@@ -138,6 +138,8 @@ void * my_malloc(size_t size) {
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
+    if (need_mem_sbrk)
+      *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
     void * ret = (void *)((char *)p + SIZE_T_SIZE);
     assert(ret <= my_heap_hi());
     assert(((uintptr_t) ret & 0xFFFF000000000000) != 0x4242000000000000);
