@@ -63,11 +63,14 @@ static int add_range(const malloc_impl_t *impl, range_t **ranges, char *lo,
   // Payload addresses must be R_ALIGNMENT-byte aligned
   // TODO(project3): YOUR CODE HERE
   // impl->malloc()
-  assert(IS_ALIGNED(lo));
-
+  if (!(IS_ALIGNED(lo))){
+    return 0;
+  }
   // The payload must lie within the extent of the heap
   // TODO(project3): YOUR CODE HERE
-  assert(lo + size - 1 <= impl->heap_hi());
+  if (lo + size - 1 > impl->heap_hi()){
+    return 0;
+  }
 
   // The payload must not overlap any other payloads
   // TODO(project3): YOUR CODE HERE
@@ -76,7 +79,9 @@ static int add_range(const malloc_impl_t *impl, range_t **ranges, char *lo,
     char * lo_a = lo;
     char * hi_a = (lo + size - 1);
     while (1) {
-      assert(hi_a < next->lo || lo_a > next->hi);
+      if ((hi_a >= next->lo) && (lo_a <= next->hi)){
+        return 0;
+      }
       if(!(next->next))
         break;
       next = next->next;
@@ -203,9 +208,8 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
 
         // Call the student's realloc
         oldp = trace->blocks[index];
-        char *z = p;
         if ((newp = (char *) impl->realloc(oldp, size)) == NULL) {
-          malloc_error(tracenum, i, "impl realloc failed.");
+          malloc_error(tracenum, i, "impl brealloc failed.");
           return 0;
         }
 
@@ -226,7 +230,9 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
         char * qp = newp;// = newp-1;
         for (int i = 0; i < oldsize; i++) {
           // qp = qp + 1;
-          assert(qp[i] == 'B'/*0b0*/);
+          if (qp[i] != 'B'){
+            return 0;
+          }
         }
 
         // Write chars to expanded region.

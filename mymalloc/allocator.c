@@ -152,9 +152,6 @@ void * my_malloc(size_t size) {
     // casting advances the pointer by SIZE_T_SIZE bytes.
     if (need_mem_sbrk)
       *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
-    void * ret = (void *)((char *)p + SIZE_T_SIZE);
-    assert(ret <= my_heap_hi());
-    assert(((uintptr_t) ret & 0xFFFF000000000000) != 0x4242000000000000);
     return (void *)((char *)p + SIZE_T_SIZE);
   }
 }
