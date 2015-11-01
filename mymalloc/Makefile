@@ -46,12 +46,6 @@ else
   CFLAGS += -DNDEBUG -O3
 endif
 
-## TO USE FOR TESTING: Compile with TEST=1 DEBUG=1 (Need both). Run ./Screensaver
-ifeq ($(TEST),1)
-  # We want to run the test files.
-  CFLAGS += -DTEST
-endif
-
 CFLAGS += $(OTHER_CFLAGS)
 
 # You shouldn't need to touch this.  This keeps track of whether or
@@ -78,9 +72,6 @@ mdriver: $(OBJS) $(MDRIVER_OBJS)
 # pattern rule for building objects
 %.o: %.c .cflags
 	$(CC) $(PARAMS) $(CFLAGS) -c $*.c -o $@
-
-allocator_tester: allocator_tester.o $(OBJS) $(MDRIVER_OBJS)
-	$(CC) $(PARAMS) $(LDFLAGS) allocator_tester.o $(OBJS) $(MDRIVER_OBJS) -o $@
 
 
 # run each of the targets

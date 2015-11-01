@@ -41,12 +41,10 @@
 
 // Rounds up to the nearest multiple of ALIGNMENT.
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
-#define IS_SMALL(size) ((size) <= SIZELIMIT)
 
 // The smallest aligned size that will hold a size_t value.
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-// size is the size of memory without the header
 typedef struct free_list_t {
   size_t size; 
   struct free_list_t* next;
@@ -77,77 +75,6 @@ int my_check() {
   }
 
   return 0;
-}
-
-static inline int remove_from_free_list_given(free_list_t * block, free_list_t * list) {
-  free_list_t * next = list;
-  free_list_t * prev = NULL;
-
-  while (next) {
-    if (next == block) {
-      // pop from linked list
-      if (prev) {
-        prev->next = next->next;
-      } else { // first node removed
-        list = next->next;
-      }
-      return 1; //break;
-    }
-
-    if(!(next->next)){
-      break; // no match found
-    }
-    prev = next;
-    next = next->next;
-  }
-
-  return 0;
-}
-
-
-static inline int remove_from_free_list(free_list_t * block) {
-  if (remove_from_free_list_given(block, small_free_list))
-    return 1;
-  else 
-    return remove_from_free_list_given(block, big_free_list);
-}
-
-// coalesce two blocks in a free list 
-void join_blocks(free_list_t * b1, free_list_t * b2) {
-  // figure out which block comes first, before coalescing.
-  // free_list_t * first = (uint64_t) b1 < (uint64_t) b2 ? b1: b2;
-  free_list_t * first; free_list_t * last;
-  if ((uint64_t) b1 < (uint64_t) b2) {
-    first = b1;
-    last = b2;
-  } else {
-    first = b2;
-    last = b1;
-  }
-
-  // if the first block is in the big_free_list, just adjust the size. 
-  // delete last from free_list
-  if (!IS_SMALL(first->size)) {
-    first->size += (last->size + SIZE_T_SIZE); // what about header?
-    remove_from_free_list(last);
-  } else {
-    // if first is not in the large free list
-    // set up a new combined block in either the small or big free_list
-    
-    // add 2*SIZE_T_SIZE to get the total size of the memory.
-    size_t size_block = first->size + last->size + (2*SIZE_T_SIZE);
-    // choose free list to add based on size_block
-    free_list_t * bin = IS_SMALL(size_block) ? small_free_list: big_free_list;
-
-    assert(size_block >= sizeof(free_list_t));
-    // size_t aligned_size = ALIGN(size_block); // use in .size?
-    *((free_list_t *) first) = (free_list_t) {.next = bin, .size = size_block - SIZE_T_SIZE};
-    bin = first;
-
-    // remove both blocks from the free list
-    remove_from_free_list(first);
-    remove_from_free_list(last);
-  }
 }
 
 // init - Initialize the malloc package.  Called once before any other
@@ -248,7 +175,6 @@ void my_free(void *ptr) {
 }
 
 // realloc - Implemented simply in terms of malloc and free
-// if change in size is not too big, just change size of header?
 void * my_realloc(void *ptr, size_t size) {
   void *newptr;
   size_t copy_size;
