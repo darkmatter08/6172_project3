@@ -36,9 +36,8 @@
 // The alignment requirement (from config.h) is >= 8 bytes.
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
-#define SIZELIMIT 500
 #define BASESIZE 500
-#define NUMBUCKETS 7
+#define NUMBUCKETS 8
 #endif
 
 // Rounds up to the nearest multiple of ALIGNMENT.
@@ -106,7 +105,23 @@ unsigned int get_bucket(unsigned int aligned_size){
   else
     return bucket+1;
 }
-
+void detect_cycle(free_list_t * start){
+  free_list_t * next;
+  free_list_t * double_next;
+  next = start;
+  double_next = start;
+  while (next){
+    next = next->next;
+    double_next = double_next->next;
+    if (double_next)
+      double_next = double_next->next;
+    else
+      break;
+    if (!double_next)
+      break;
+    assert(double_next != next);
+  }
+}
 //  malloc - Allocate a block by incrementing the brk pointer.
 //  Always allocate a block whose size is a multiple of the alignment.
 void * my_malloc(size_t size) {
@@ -127,9 +142,16 @@ void * my_malloc(size_t size) {
   assert(free_list_array_index < NUMBUCKETS);
   next = free_list_array[free_list_array_index];
   free_list_t * prev = NULL;
-
+  //detect_cycle(next);
+  size_t slack;
+  void* ptr_header;
+  int need_clearing = 0;
   while (next) {
-    if(next->size + SIZE_T_SIZE >= aligned_size) {
+    size_t next_size = ALIGN(next->size + SIZE_T_SIZE);
+    if(next_size >= aligned_size) {
+      need_clearing = 1;
+      slack = next_size - aligned_size;
+
       // pop from linked list
       if(prev) {
         prev->next = next->next;
@@ -147,6 +169,15 @@ void * my_malloc(size_t size) {
     next = next->next;
   } // next is valid and the last element in the linked list
   // checks whether we need a mem_sbrk
+  ptr_header = ((char *) p) + aligned_size;
+  int need_resizing = 1;
+  if(need_clearing == 1){
+    need_resizing = 0;
+    if (slack > sizeof(free_list_t)){
+      need_resizing = 1;
+      my_free_with_size(ptr_header, slack);
+    }
+  } 
   unsigned int need_mem_sbrk = !p;
   if (need_mem_sbrk)
     p = mem_sbrk(aligned_size);
@@ -168,10 +199,19 @@ void * my_malloc(size_t size) {
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
-    if (need_mem_sbrk)
-      *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
+    if (need_resizing ==1)
+      *(size_t*)p = aligned_size-SIZE_T_SIZE;
     return (void *)((char *)p + SIZE_T_SIZE);
   }
+}
+
+// free given size to free
+void my_free_with_size(void *ptr_header, size_t aligned_size) {
+  unsigned int free_list_array_index = get_bucket(aligned_size);
+  *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .size = aligned_size - SIZE_T_SIZE};
+  free_list_array[free_list_array_index] = ptr_header;
+
+  //&free_list to get location of free memory
 }
 
 // free - Freeing a block does nothing.
@@ -179,11 +219,11 @@ void my_free(void *ptr) {
   void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
   assert(size_block >= sizeof(free_list_t));
-
   size_t aligned_size = ALIGN(size_block);
-  unsigned int free_list_array_index = get_bucket(aligned_size);
+  my_free_with_size(ptr_header, aligned_size);
+  /*unsigned int free_list_array_index = get_bucket(aligned_size);
   *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .size = aligned_size - SIZE_T_SIZE};
-  free_list_array[free_list_array_index] = ptr_header;
+  free_list_array[free_list_array_index] = ptr_header; */
 
   //&free_list to get location of free memory
 }
@@ -194,6 +234,13 @@ void * my_realloc(void *ptr, size_t size) {
   size_t copy_size;
 
   // Allocate a new chunk of memory, and fail if that allocation fails.
+  copy_size = *(size_t*)((uint8_t*)ptr - SIZE_T_SIZE);
+  if (size < copy_size){
+    return ptr;
+  }
+
+  // If the new block is smaller than the old one, we have to stop copying
+  // early so that we don't write off the end of the new block of memory.
   newptr = my_malloc(size);
   if (NULL == newptr)
     return NULL;
@@ -202,7 +249,6 @@ void * my_realloc(void *ptr, size_t size) {
   // where we stashed this in the SIZE_T_SIZE bytes directly before the
   // address we returned.  Now we can back up by that many bytes and read
   // the size.
-  copy_size = *(size_t*)((uint8_t*)ptr - SIZE_T_SIZE);
 
   // If the new block is smaller than the old one, we have to stop copying
   // early so that we don't write off the end of the new block of memory.
