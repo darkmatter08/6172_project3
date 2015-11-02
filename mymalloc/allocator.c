@@ -105,6 +105,8 @@ unsigned int get_bucket(unsigned int aligned_size){
   else
     return bucket+1;
 }
+
+//useful for debugging
 void detect_cycle(free_list_t * start){
   free_list_t * next;
   free_list_t * double_next;
@@ -122,6 +124,7 @@ void detect_cycle(free_list_t * start){
     assert(double_next != next);
   }
 }
+
 //  malloc - Allocate a block by incrementing the brk pointer.
 //  Always allocate a block whose size is a multiple of the alignment.
 void * my_malloc(size_t size) {
@@ -143,12 +146,16 @@ void * my_malloc(size_t size) {
   next = free_list_array[free_list_array_index];
   free_list_t * prev = NULL;
   //detect_cycle(next);
+  /* variables slack, ptr_heaader, need_clearing are used in the case where we use an
+     from the free list that has a size significantly greater than the size we just
+     stored. */
   size_t slack;
   void* ptr_header;
   int need_clearing = 0;
   while (next) {
     size_t next_size = ALIGN(next->size + SIZE_T_SIZE);
     if(next_size >= aligned_size) {
+      //means we potentially need to free memory for the linked list
       need_clearing = 1;
       slack = next_size - aligned_size;
 
@@ -168,16 +175,20 @@ void * my_malloc(size_t size) {
     prev = next;
     next = next->next;
   } // next is valid and the last element in the linked list
-  // checks whether we need a mem_sbrk
+
   ptr_header = ((char *) p) + aligned_size;
+
+  //code to make sure we do change the size stored at p if we are going to add the slack to the free list
   int need_resizing = 1;
   if(need_clearing == 1){
-    need_resizing = 0;
+    need_resizing = 0; //set to 0 if too slack is too small
+    // this is the code that frees the rest of the already free device
     if (slack > sizeof(free_list_t)){
       need_resizing = 1;
       my_free_with_size(ptr_header, slack);
     }
-  } 
+  }
+  // checks whether we need a mem_sbrk
   unsigned int need_mem_sbrk = !p;
   if (need_mem_sbrk)
     p = mem_sbrk(aligned_size);
