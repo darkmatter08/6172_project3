@@ -38,7 +38,7 @@
 #define ALIGNMENT 8
 #define SIZELIMIT 500
 #define BASESIZE 500
-#define NUMBUCKETS 2
+#define NUMBUCKETS 7
 #endif
 
 // Rounds up to the nearest multiple of ALIGNMENT.
@@ -101,7 +101,10 @@ unsigned int get_bucket(unsigned int aligned_size){
   }
   assert((BASESIZE << bucket) <= aligned_size);
   assert((BASESIZE << (bucket+1)) > aligned_size);
-  return bucket+1;
+  if (bucket + 1 >= NUMBUCKETS)
+    return NUMBUCKETS - 1;
+  else
+    return bucket+1;
 }
 
 //  malloc - Allocate a block by incrementing the brk pointer.
@@ -112,10 +115,6 @@ void * my_malloc(size_t size) {
   // one example of a place where this can come in handy.
   assert(get_bucket(1) == 0);
   assert(get_bucket(BASESIZE) == 1);
-  assert(get_bucket(BASESIZE+1) == 1);
-  assert(get_bucket(BASESIZE*2 - 1) == 1);
-  assert(get_bucket(BASESIZE*2) == 2);
-  assert(get_bucket(BASESIZE*2 + 1) == 2);
   unsigned int aligned_size = ALIGN(size + SIZE_T_SIZE);
 
   void *p = NULL;
@@ -124,17 +123,8 @@ void * my_malloc(size_t size) {
   // make sure you don't wind up calling it on every malloc.
 
   free_list_t * next;
-  unsigned int bucket = get_bucket(aligned_size);
-  assert((BASESIZE << bucket) >= aligned_size);
-  int free_list_array_index;
-  if (bucket >= NUMBUCKETS){
-    free_list_array_index = NUMBUCKETS-1;
-  }
-  else {
-    free_list_array_index = (int) bucket;
-    assert((BASESIZE << 1) == BASESIZE*2);
-  }
-
+  unsigned int free_list_array_index = get_bucket(aligned_size);
+  assert(free_list_array_index < NUMBUCKETS);
   next = free_list_array[free_list_array_index];
   free_list_t * prev = NULL;
 
@@ -191,11 +181,11 @@ void my_free(void *ptr) {
   assert(size_block >= sizeof(free_list_t));
 
   size_t aligned_size = ALIGN(size_block);
-  unsigned int free_list_array_index;
+  unsigned int free_list_array_index = get_bucket(aligned_size);
   if (aligned_size <= SIZELIMIT)
-    free_list_array_index = 0;
+    assert(free_list_array_index == 0);
   else
-    free_list_array_index = 1;
+    assert(free_list_array_index == 1);
   *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .size = aligned_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = ptr_header;
 
