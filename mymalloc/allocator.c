@@ -182,10 +182,6 @@ void my_free(void *ptr) {
 
   size_t aligned_size = ALIGN(size_block);
   unsigned int free_list_array_index = get_bucket(aligned_size);
-  if (aligned_size <= SIZELIMIT)
-    assert(free_list_array_index == 0);
-  else
-    assert(free_list_array_index == 1);
   *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .size = aligned_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = ptr_header;
 
