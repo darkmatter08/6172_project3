@@ -83,4 +83,13 @@ static const malloc_impl_t bad_impl =
   .free = &bad_free, .check = &bad_check, .reset_brk = &bad_reset_brk,
   .heap_lo = &bad_heap_lo, .heap_hi = &bad_heap_hi};
 
+// size is the size of memory without the header
+typedef struct free_list_t {
+  size_t size; 
+  struct free_list_t* next;
+} free_list_t;
+
+free_list_t * small_free_list;
+free_list_t * big_free_list;
+
 #endif  // _ALLOCATOR_INTERFACE_H

@@ -46,14 +46,14 @@
 // The smallest aligned size that will hold a size_t value.
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-// size is the size of memory without the header
-typedef struct free_list_t {
-  size_t size; 
-  struct free_list_t* next;
-} free_list_t;
+// // size is the size of memory without the header
+// typedef struct free_list_t {
+//   size_t size; 
+//   struct free_list_t* next;
+// } free_list_t;
 
-free_list_t * small_free_list;
-free_list_t * big_free_list;
+// extern free_list_t * small_free_list;
+// extern free_list_t * big_free_list;
 
 // check - This checks our invariant that the size_t header before every
 // block points to either the beginning of the next block, or the end of the
@@ -79,8 +79,8 @@ int my_check() {
   return 0;
 }
 
-static inline int remove_from_free_list_given(free_list_t * block, free_list_t * list) {
-  free_list_t * next = list;
+static inline int remove_from_free_list_given(free_list_t * block, free_list_t ** list) {
+  free_list_t * next = *list;
   free_list_t * prev = NULL;
 
   while (next) {
@@ -89,7 +89,7 @@ static inline int remove_from_free_list_given(free_list_t * block, free_list_t *
       if (prev) {
         prev->next = next->next;
       } else { // first node removed
-        list = next->next;
+        *list = next->next;
       }
       return 1; //break;
     }
@@ -106,10 +106,10 @@ static inline int remove_from_free_list_given(free_list_t * block, free_list_t *
 
 
 static inline int remove_from_free_list(free_list_t * block) {
-  if (remove_from_free_list_given(block, small_free_list))
+  if (remove_from_free_list_given(block, &small_free_list))
     return 1;
   else 
-    return remove_from_free_list_given(block, big_free_list);
+    return remove_from_free_list_given(block, &big_free_list);
 }
 
 // coalesce two blocks in a free list 
@@ -117,7 +117,7 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   // figure out which block comes first, before coalescing.
   // free_list_t * first = (uint64_t) b1 < (uint64_t) b2 ? b1: b2;
   free_list_t * first; free_list_t * last;
-  if ((uint64_t) b1 < (uint64_t) b2) {
+  if (b1 < b2) {
     first = b1;
     last = b2;
   } else {
@@ -129,24 +129,23 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   // delete last from free_list
   if (!IS_SMALL(first->size)) {
     first->size += (last->size + SIZE_T_SIZE); // what about header?
-    remove_from_free_list(last);
-  } else {
-    // if first is not in the large free list
-    // set up a new combined block in either the small or big free_list
+    assert(remove_from_free_list(last));
+  } else { // if first is not in the large free list
+    // remove both blocks from the free list
+    assert(remove_from_free_list(first));
+    assert(remove_from_free_list(last));
     
+    // set up a new combined block in either the small or big free_list
     // add 2*SIZE_T_SIZE to get the total size of the memory.
     size_t size_block = first->size + last->size + (2*SIZE_T_SIZE);
     // choose free list to add based on size_block
-    free_list_t * bin = IS_SMALL(size_block) ? small_free_list: big_free_list;
+    free_list_t ** bin = IS_SMALL(size_block) ? &small_free_list: &big_free_list;
 
     assert(size_block >= sizeof(free_list_t));
     // size_t aligned_size = ALIGN(size_block); // use in .size?
-    *((free_list_t *) first) = (free_list_t) {.next = bin, .size = size_block - SIZE_T_SIZE};
-    bin = first;
+    *first = (free_list_t) {.next = *bin, .size = size_block - SIZE_T_SIZE};
+    *bin = first;
 
-    // remove both blocks from the free list
-    remove_from_free_list(first);
-    remove_from_free_list(last);
   }
 }
 
