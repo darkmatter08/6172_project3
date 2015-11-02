@@ -88,6 +88,21 @@ int my_init() {
   return 0;
 }
 
+// figures out which bucket to use, takes aligned sizes
+// currently returns a bucket that potentially works
+
+unsigned int get_bucket(unsigned int aligned_size){
+  if (aligned_size < BASESIZE)
+    return 0;
+  unsigned int rounded_down = aligned_size / BASESIZE;
+  unsigned int bucket = 0;
+  while(rounded_down >>= 1){
+    ++bucket;
+  }
+  assert((BASESIZE << bucket) <= aligned_size);
+  assert((BASESIZE << (bucket+1)) > aligned_size);
+  return bucket+1;
+}
 
 //  malloc - Allocate a block by incrementing the brk pointer.
 //  Always allocate a block whose size is a multiple of the alignment.
@@ -95,7 +110,13 @@ void * my_malloc(size_t size) {
   // We allocate a little bit of extra memory so that we can store the
   // size of the block we've allocated.  Take a look at realloc to see
   // one example of a place where this can come in handy.
-  int aligned_size = ALIGN(size + SIZE_T_SIZE);
+  assert(get_bucket(1) == 0);
+  assert(get_bucket(BASESIZE) == 1);
+  assert(get_bucket(BASESIZE+1) == 1);
+  assert(get_bucket(BASESIZE*2 - 1) == 1);
+  assert(get_bucket(BASESIZE*2) == 2);
+  assert(get_bucket(BASESIZE*2 + 1) == 2);
+  unsigned int aligned_size = ALIGN(size + SIZE_T_SIZE);
 
   void *p = NULL;
   // Expands the heap by the given number of bytes and returns a pointer to
@@ -103,12 +124,17 @@ void * my_malloc(size_t size) {
   // make sure you don't wind up calling it on every malloc.
 
   free_list_t * next;
-  int is_small = (aligned_size <= SIZELIMIT);
+  unsigned int bucket = get_bucket(aligned_size);
+  assert((BASESIZE << bucket) >= aligned_size);
   int free_list_array_index;
-  if (is_small)
-    free_list_array_index = 0;
-  else
-    free_list_array_index = 1;
+  if (bucket >= NUMBUCKETS){
+    free_list_array_index = NUMBUCKETS-1;
+  }
+  else {
+    free_list_array_index = (int) bucket;
+    assert((BASESIZE << 1) == BASESIZE*2);
+  }
+
   next = free_list_array[free_list_array_index];
   free_list_t * prev = NULL;
 
@@ -131,7 +157,7 @@ void * my_malloc(size_t size) {
     next = next->next;
   } // next is valid and the last element in the linked list
   // checks whether we need a mem_sbrk
-  int need_mem_sbrk = !p;
+  unsigned int need_mem_sbrk = !p;
   if (need_mem_sbrk)
     p = mem_sbrk(aligned_size);
 
@@ -165,7 +191,7 @@ void my_free(void *ptr) {
   assert(size_block >= sizeof(free_list_t));
 
   size_t aligned_size = ALIGN(size_block);
-  int free_list_array_index;
+  unsigned int free_list_array_index;
   if (aligned_size <= SIZELIMIT)
     free_list_array_index = 0;
   else
