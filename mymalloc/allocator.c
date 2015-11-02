@@ -37,6 +37,8 @@
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
 #define SIZELIMIT 500
+#define BASESIZE 500
+#define NUMBUCKETS 2
 #endif
 
 // Rounds up to the nearest multiple of ALIGNMENT.
@@ -50,8 +52,7 @@ typedef struct free_list_t {
   struct free_list_t* next;
 } free_list_t;
 
-free_list_t * small_free_list;
-free_list_t * big_free_list;
+free_list_t * free_list_array[NUMBUCKETS];
 
 // check - This checks our invariant that the size_t header before every
 // block points to either the beginning of the next block, or the end of the
@@ -81,10 +82,12 @@ int my_check() {
 // calls are made.  Since this is a very simple implementation, we just
 // return success.
 int my_init() {
-  small_free_list = NULL;
-  big_free_list = NULL;
+  for(int i = 0; i < NUMBUCKETS; i++){
+    free_list_array[i] = NULL;
+  }
   return 0;
 }
+
 
 //  malloc - Allocate a block by incrementing the brk pointer.
 //  Always allocate a block whose size is a multiple of the alignment.
@@ -101,10 +104,12 @@ void * my_malloc(size_t size) {
 
   free_list_t * next;
   int is_small = (aligned_size <= SIZELIMIT);
+  int free_list_array_index;
   if (is_small)
-    next = small_free_list;
+    free_list_array_index = 0;
   else
-    next = big_free_list;
+    free_list_array_index = 1;
+  next = free_list_array[free_list_array_index];
   free_list_t * prev = NULL;
 
   while (next) {
@@ -113,10 +118,7 @@ void * my_malloc(size_t size) {
       if(prev) {
         prev->next = next->next;
       } else { // first node removed
-        if (is_small)
-          small_free_list = next->next;
-        else
-          big_free_list = next->next;
+        free_list_array[free_list_array_index] = next->next;
       }
       p = next;
       break;
@@ -163,14 +165,14 @@ void my_free(void *ptr) {
   assert(size_block >= sizeof(free_list_t));
 
   size_t aligned_size = ALIGN(size_block);
-  if (aligned_size <= SIZELIMIT){
-    *((free_list_t *) ptr_header) = (free_list_t) {.next = small_free_list, .size = size_block - SIZE_T_SIZE};
-    small_free_list = ptr_header;
-  }
-  else {
-    *((free_list_t *) ptr_header) = (free_list_t) {.next = big_free_list, .size = size_block - SIZE_T_SIZE};
-    big_free_list = ptr_header;
-  }
+  int free_list_array_index;
+  if (aligned_size <= SIZELIMIT)
+    free_list_array_index = 0;
+  else
+    free_list_array_index = 1;
+  *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .size = aligned_size - SIZE_T_SIZE};
+  free_list_array[free_list_array_index] = ptr_header;
+
   //&free_list to get location of free memory
 }
 
