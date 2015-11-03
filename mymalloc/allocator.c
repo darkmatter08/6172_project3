@@ -183,7 +183,7 @@ void * my_malloc(size_t size) {
   if(need_clearing == 1){
     need_resizing = 0; //set to 0 if too slack is too small
     // this is the code that frees the rest of the already free device
-    if (slack > sizeof(free_list_t)){
+    if (slack >= BASESIZE){
       need_resizing = 1;
       my_free_with_size(ptr_header, slack);
     }
