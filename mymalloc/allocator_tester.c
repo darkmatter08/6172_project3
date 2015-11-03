@@ -1,4 +1,5 @@
 #include "./allocator_interface.h"
+#include "./stdint.h"
 
 // from allocator.c
 #ifndef ALIGNMENT
@@ -147,15 +148,57 @@ void small_big_join_test() {
 	assert(big_free_list->size == ALIGN(SMALLCONST)+BIGCONST+SIZE_T_SIZE);
 }
 
+void footer_test() {
+	mem_reset_brk();
+	my_init();
+
+	assert(!big_free_list); assert(!small_free_list);
+
+	// BEGIN TEST
+	void* p1 = my_malloc(SMALLCONST);
+	assert(p1);
+	// check footer is zeroed.
+	size_t p1_size = *(size_t*)(((uint8_t*) p1));
+	assert(*(size_t*)((uint8_t*) p1 + p1_size) == 0);
+
+	void* p2 = my_malloc(BIGCONST);
+	assert(p2);
+	// check footer is zeroed.
+	size_t p2_size = *(size_t*)(((uint8_t*) p2));
+	assert(*(size_t*)((uint8_t*) p2 + p2_size) == 0);
+
+	my_free(p1);
+	// Assume p1 in the small_free_list
+	// check the footer is set to the size in the free list
+	// since we are starting from the small_free_list, we must add
+	// SIZE_T_SIZE to jump to the same point as p1.
+	assert(p1 == (uint8_t*) small_free_list + SIZE_T_SIZE);
+
+	assert(*(size_t*)((uint8_t*) small_free_list + (small_free_list->size) + SIZE_T_SIZE) == small_free_list->size);
+	
+	my_free(p2);
+	// Assume p2 in the big_free_list
+	// check the footer is set to the size in the free list
+	assert(p2 == (uint8_t*) big_free_list + SIZE_T_SIZE);
+	assert(*(size_t*)((uint8_t*) big_free_list + (big_free_list->size) + SIZE_T_SIZE) == big_free_list->size);
+}
+
 #ifdef TEST
 int main() {
 	mem_init();
+	
 	big_join_test();
 	printf("PASSED: big_join_test\n");
+	
 	small_join_test();
 	printf("PASSED: small_join_test\n");
+	
 	small_big_join_test();
 	printf("PASSED: small_big_join_test\n");
+
+	footer_test();
+	printf("PASSED: footer_test\n");
+	
 	mem_deinit();
 	printf("ALL TESTS PASSED\n");
 	return 1;

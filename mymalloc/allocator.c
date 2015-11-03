@@ -46,6 +46,8 @@
 // The smallest aligned size that will hold a size_t value.
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+#define FOOTER_SIZE SIZE_T_SIZE
+
 // // size is the size of memory without the header
 // typedef struct free_list_t {
 //   size_t size; 
@@ -67,7 +69,7 @@ int my_check() {
   p = lo;
   while (lo <= p && p < hi) {
     size = ALIGN(*(size_t*)p + SIZE_T_SIZE);
-    p += size;
+    p += size + FOOTER_SIZE;
   }
 
   if (p != hi) {
@@ -202,8 +204,9 @@ void * my_malloc(size_t size) {
   } // next is valid and the last element in the linked list
   // checks whether we need a mem_sbrk
   int need_mem_sbrk = !p;
-  if (need_mem_sbrk)
-    p = mem_sbrk(aligned_size);
+  if (need_mem_sbrk){
+    p = mem_sbrk(aligned_size+FOOTER_SIZE);
+  }
 
 
   if (p == (void *)-1) { // TODO: move check as part of mem_sbrk only
@@ -222,8 +225,12 @@ void * my_malloc(size_t size) {
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
-    if (need_mem_sbrk)
-      *(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
+    if (need_mem_sbrk) { // TODO: Need to set headers/footers again when blocks are split.
+      *(size_t*)p = aligned_size-SIZE_T_SIZE;
+      // set footer size to be 0. When freed, set to be same as header size
+      *((size_t*) ((uint8_t*) p + aligned_size+SIZE_T_SIZE)) = 0;//aligned_size-SIZE_T_SIZE;
+    }
+
     return (void *)((char *)p + SIZE_T_SIZE);
   }
 }
@@ -243,7 +250,12 @@ void my_free(void *ptr) {
     *((free_list_t *) ptr_header) = (free_list_t) {.next = big_free_list, .size = aligned_size - SIZE_T_SIZE};
     big_free_list = ptr_header;
   }
+  // set footer
+  *((size_t*) ((uint8_t*) ptr_header + aligned_size)) = aligned_size-SIZE_T_SIZE;
   //&free_list to get location of free memory
+  // check footer of previous memory.
+
+  // check header of next memory to compute footer.
 }
 
 // realloc - Implemented simply in terms of malloc and free
