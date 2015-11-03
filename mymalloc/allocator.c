@@ -236,11 +236,11 @@ void my_free(void *ptr) {
 
   size_t aligned_size = ALIGN(size_block);
   if (aligned_size <= SIZELIMIT){
-    *((free_list_t *) ptr_header) = (free_list_t) {.next = small_free_list, .size = size_block - SIZE_T_SIZE};
+    *((free_list_t *) ptr_header) = (free_list_t) {.next = small_free_list, .size = aligned_size - SIZE_T_SIZE};
     small_free_list = ptr_header;
   }
   else {
-    *((free_list_t *) ptr_header) = (free_list_t) {.next = big_free_list, .size = size_block - SIZE_T_SIZE};
+    *((free_list_t *) ptr_header) = (free_list_t) {.next = big_free_list, .size = aligned_size - SIZE_T_SIZE};
     big_free_list = ptr_header;
   }
   //&free_list to get location of free memory
