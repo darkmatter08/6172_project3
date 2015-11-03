@@ -37,7 +37,7 @@
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
 #define BASESIZE 500
-#define NUMBUCKETS 8
+#define NUMBUCKETS 7
 #endif
 
 // Rounds up to the nearest multiple of ALIGNMENT.
@@ -149,15 +149,15 @@ void * my_malloc(size_t size) {
   /* variables slack, ptr_heaader, need_clearing are used in the case where we use an
      from the free list that has a size significantly greater than the size we just
      stored. */
-  size_t slack;
+  /*size_t slack;
   void* ptr_header;
-  int need_clearing = 0;
+  int need_clearing = 0; */
   while (next) {
     size_t next_size = ALIGN(next->size + SIZE_T_SIZE);
     if(next_size >= aligned_size) {
       //means we potentially need to free memory for the linked list
-      need_clearing = 1;
-      slack = next_size - aligned_size;
+      //need_clearing = 1;
+      //slack = next_size - aligned_size;
 
       // pop from linked list
       if(prev) {
@@ -176,10 +176,10 @@ void * my_malloc(size_t size) {
     next = next->next;
   } // next is valid and the last element in the linked list
 
-  ptr_header = ((char *) p) + aligned_size;
+  //ptr_header = ((char *) p) + aligned_size;
 
   //code to make sure we do change the size stored at p if we are going to add the slack to the free list
-  int need_resizing = 1;
+  /*int need_resizing = 1;
   if(need_clearing == 1){
     need_resizing = 0; //set to 0 if too slack is too small
     // this is the code that frees the rest of the already free device
@@ -187,7 +187,7 @@ void * my_malloc(size_t size) {
       need_resizing = 1;
       my_free_with_size(ptr_header, slack);
     }
-  }
+    }*/
   // checks whether we need a mem_sbrk
   unsigned int need_mem_sbrk = !p;
   if (need_mem_sbrk)
@@ -210,7 +210,7 @@ void * my_malloc(size_t size) {
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
-    if (need_resizing ==1)
+    if (need_mem_sbrk)
       *(size_t*)p = aligned_size-SIZE_T_SIZE;
     return (void *)((char *)p + SIZE_T_SIZE);
   }
