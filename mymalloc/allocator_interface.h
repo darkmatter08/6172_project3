@@ -92,4 +92,6 @@ typedef struct free_list_t {
 free_list_t * small_free_list;
 free_list_t * big_free_list;
 
+int do_coalesce;
+
 #endif  // _ALLOCATOR_INTERFACE_H

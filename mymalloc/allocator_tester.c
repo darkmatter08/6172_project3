@@ -16,6 +16,7 @@
 void big_join_test() {
 	mem_reset_brk();
 	my_init();
+	do_coalesce = 0;
 
 	// BEGIN TEST
 	void* p1 = my_malloc(BIGCONST);
@@ -60,6 +61,7 @@ void big_join_test() {
 void small_join_test() {
 	mem_reset_brk();
 	my_init();
+	do_coalesce = 0;
 
 	assert(!big_free_list); assert(!small_free_list);
 
@@ -105,6 +107,7 @@ void small_join_test() {
 void small_big_join_test() {
 	mem_reset_brk();
 	my_init();
+	do_coalesce = 0;
 
 	assert(!big_free_list); assert(!small_free_list);
 
@@ -151,6 +154,7 @@ void small_big_join_test() {
 void footer_test() {
 	mem_reset_brk();
 	my_init();
+	do_coalesce = 0;
 
 	assert(!big_free_list); assert(!small_free_list);
 
@@ -183,6 +187,105 @@ void footer_test() {
 	assert(*(size_t*)((uint8_t*) big_free_list + (big_free_list->size) + SIZE_T_SIZE) == big_free_list->size);
 }
 
+void coalesce_test_previous() {
+	mem_reset_brk();
+	my_init();
+	do_coalesce = 1;
+
+	assert(!big_free_list); assert(!small_free_list);
+
+	// BEGIN TEST
+	void* p1 = my_malloc(SMALLCONST);
+	assert(p1);
+
+	void* p2 = my_malloc(BIGCONST);
+	assert(p2);
+
+	// checks only prev memory case, not next memory case.
+	my_free(p1);
+	my_free(p2);
+
+	// check for auto-joining.
+	assert(small_free_list == NULL);
+	assert(big_free_list);
+	assert(big_free_list->size > ALIGN(SMALLCONST+BIGCONST));
+	assert(big_free_list->size == ALIGN(SMALLCONST)+BIGCONST+SIZE_T_SIZE); // don't include footer size
+	assert(!(big_free_list->next));
+
+	p2 = my_malloc(SMALLCONST+BIGCONST+SIZE_T_SIZE);
+	// checked that we got from freed joined block
+	assert(small_free_list == NULL);
+	assert(big_free_list == NULL);
+	// TODO: check size from footer?
+
+	my_free(p2);
+	// check block is returned to big_free_list
+	assert(big_free_list);
+	assert(big_free_list->size == ALIGN(SMALLCONST)+BIGCONST+SIZE_T_SIZE);
+}
+
+// not actually testing forward coalescing.
+void coalesce_test_forward() {
+	mem_reset_brk();
+	my_init();
+	do_coalesce = 1;
+
+	assert(!big_free_list); assert(!small_free_list);
+
+	// BEGIN TEST
+	void* p1 = my_malloc(SMALLCONST);
+	assert(p1);
+
+	void* p2 = my_malloc(BIGCONST);
+	assert(p2);
+
+	// checks only next memory case, not prev memory case.
+	my_free(p2); // for some reason, doesn't get added to small_free_list
+	assert(small_free_list);
+	my_free(p1);
+
+	// check for auto-joining.
+	assert(small_free_list == NULL);
+	assert(big_free_list);
+	assert(big_free_list->size > ALIGN(SMALLCONST+BIGCONST));
+	assert(big_free_list->size == ALIGN(SMALLCONST)+BIGCONST+SIZE_T_SIZE); // don't include footer size
+	assert(!(big_free_list->next));
+
+	p2 = my_malloc(SMALLCONST+BIGCONST+SIZE_T_SIZE);
+	// checked that we got from freed joined block
+	assert(small_free_list == NULL);
+	assert(big_free_list == NULL);
+	// TODO: check size from footer?
+
+	my_free(p2);
+	// check block is returned to big_free_list
+	assert(big_free_list);
+	assert(big_free_list->size == ALIGN(SMALLCONST)+BIGCONST+SIZE_T_SIZE);
+}
+
+void coalesce_test_forward_real() {
+	mem_reset_brk();
+	my_init();
+	do_coalesce = 1;
+
+	assert(!big_free_list); assert(!small_free_list);
+
+	// BEGIN TEST
+	void* p1 = my_malloc(SMALLCONST);
+	assert(p1);
+
+	void* p2 = my_malloc(BIGCONST);
+	assert(p2);
+
+	void* p3 = my_malloc(BIGCONST);
+	assert(p3);
+
+	my_free(p3);
+	my_free(p2);
+	// check foward
+	// my_free();
+}
+
 #ifdef TEST
 int main() {
 	mem_init();
@@ -198,6 +301,12 @@ int main() {
 
 	footer_test();
 	printf("PASSED: footer_test\n");
+
+	coalesce_test_previous();
+	printf("PASSED: coalesce_test_previous\n");
+
+	coalesce_test_forward();
+	printf("PASSED: coalesce_test_forward\n");
 	
 	mem_deinit();
 	printf("ALL TESTS PASSED\n");

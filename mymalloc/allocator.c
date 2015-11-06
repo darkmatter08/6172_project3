@@ -81,7 +81,8 @@ int my_check() {
   return 0;
 }
 
-static inline int remove_from_free_list_given(free_list_t * block, free_list_t ** list) {
+static inline int remove_from_free_list_given(free_list_t * block,
+                                              free_list_t ** list) {
   free_list_t * next = *list;
   free_list_t * prev = NULL;
 
@@ -131,11 +132,15 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   // delete last from free_list
   if (!IS_SMALL(first->size)) {
     first->size += (last->size + SIZE_T_SIZE); // what about header?
-    assert(remove_from_free_list(last));
+    int i1 = remove_from_free_list(last);
+    assert(i1);
   } else { // if first is not in the large free list
     // remove both blocks from the free list
-    assert(remove_from_free_list(first));
-    assert(remove_from_free_list(last));
+    // TODO: move out of assert so its executed without debug mode.
+    int i1 = remove_from_free_list(first);
+    int i2 = remove_from_free_list(last);
+    assert(i1);
+    assert(i2);
     
     // set up a new combined block in either the small or big free_list
     // add 2*SIZE_T_SIZE to get the total size of the memory.
@@ -253,9 +258,29 @@ void my_free(void *ptr) {
   // set footer
   *((size_t*) ((uint8_t*) ptr_header + aligned_size)) = aligned_size-SIZE_T_SIZE;
   //&free_list to get location of free memory
-  // check footer of previous memory.
 
-  // check header of next memory to compute footer.
+  if (do_coalesce) {
+    // check address of prev block's footer is greater than my_heap_lo().
+    void * prev_block = (uint8_t*) ptr_header - FOOTER_SIZE;
+    // check footer of previous memory.
+    size_t size_prev_block = *((size_t*) prev_block); // possible invalid memory access
+    if (prev_block > my_heap_lo() && size_prev_block) { // can coalesce back
+      join_blocks(
+        (free_list_t*) ((uint8_t*) ptr_header - FOOTER_SIZE - size_prev_block - SIZE_T_SIZE),
+        ptr_header
+      );
+    }
+    // check header of next memory to compute footer.
+    void * next_block = (void *) ((uint8_t*) ptr_header + aligned_size + FOOTER_SIZE);
+    if (next_block < my_heap_hi()) {
+      size_t size_next_block = ((free_list_t*) next_block)->size;
+      void * footer_next_block = (void *) ((uint8_t*) next_block + SIZE_T_SIZE + size_next_block + FOOTER_SIZE);
+      size_t value_footer_next_block = *(size_t*) footer_next_block;
+      if (value_footer_next_block) {
+        join_blocks(next_block, ptr_header);
+      }
+    }
+  }
 }
 
 // realloc - Implemented simply in terms of malloc and free
