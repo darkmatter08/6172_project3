@@ -56,6 +56,7 @@ static const malloc_impl_t libc_impl =
   .heap_lo = &libc_heap_lo, .heap_hi = &libc_heap_hi};
 
 int my_init();
+void * get_free_list_pointer(unsigned int index);
 void * my_malloc(size_t size);
 void * my_realloc(void *ptr, size_t size);
 void my_free(void *ptr);

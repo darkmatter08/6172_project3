@@ -87,6 +87,10 @@ int my_init() {
   return 0;
 }
 
+void * get_free_list_pointer(unsigned int index){
+  return ((void *) free_list_array[index]);
+}
+
 // figures out which bucket to use, takes aligned sizes
 // currently returns a bucket that potentially works
 

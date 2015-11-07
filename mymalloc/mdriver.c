@@ -73,6 +73,7 @@ static void usage(void);
 /**************
  * Main routine
  **************/
+#ifndef TEST
 int main(int argc, char **argv) {
 #ifdef GET_RUNNINGTIME
   fasttime_t begin = gettime();
@@ -366,7 +367,7 @@ int main(int argc, char **argv) {
 
   exit(0);
 }
-
+#endif
 /**********************************************
  * The following routines manipulate tracefiles
  *********************************************/
