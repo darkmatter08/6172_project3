@@ -287,7 +287,20 @@ void coalesce_test_forward_real() {
 	// my_free();
 }
 */
+
+void assert_count() {
+	int count = 0;
+	for (int i = 0; i < NUMBUCKETS; i++) {
+		if (free_list_array[i]){
+			count++;
+			// assert(free_list_array[i]->size >= 114604);
+		}
+	}
+	assert(count == 1);
+}
+
 void c7_test() {
+	do_coalesce = 1;
 	void * p0 =  my_malloc(2150);
 	void * p1 =  my_malloc(3843);
 	void * p2 =  my_malloc(4331);
@@ -302,30 +315,22 @@ void c7_test() {
 	void * p11 = my_malloc(870);
 	void * p12 = my_malloc(1012);
 	void * p13 = my_malloc(651);
-	my_free(p0);
-	my_free(p1);
-	my_free(p2);
-	my_free(p3);
-	my_free(p4);
-	my_free(p5);
-	my_free(p6);
-	my_free(p7);
-	my_free(p8);
-	my_free(p9);
-	my_free(p10);
-	my_free(p11);
-	my_free(p12);
-	my_free(p13);
+	my_free(p0); assert_count();
+	my_free(p1); assert_count();
+	my_free(p2); assert_count();
+	my_free(p3); assert_count();
+	my_free(p4); assert_count();
+	my_free(p5); assert_count();
+	my_free(p6); assert_count();
+	my_free(p7); assert_count();
+	my_free(p8); assert_count();
+	my_free(p9); assert_count();
+	my_free(p10); assert_count();
+	my_free(p11); assert_count();
+	my_free(p12); assert_count();
+	my_free(p13); assert_count();
 	void * heap_top = my_heap_hi();
 	// only one bucket is occupied, size >= 114604
-	int count = 0;
-	for (int i = 0; i < NUMBUCKETS; i++) {
-		if (free_list_array[i]){
-			count++;
-			// assert(free_list_array[i]->size >= 114604);
-		}
-	}
-	assert(count == 1);
 
 	void * p14 = my_malloc(17356);
 	void * p15 = my_malloc(5993);
