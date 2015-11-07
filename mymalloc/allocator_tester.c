@@ -13,6 +13,7 @@
 #define BIGCONST 640
 #define SMALLCONST 100
 
+/*
 void big_join_test() {
 	mem_reset_brk();
 	my_init();
@@ -285,44 +286,102 @@ void coalesce_test_forward_real() {
 	// check foward
 	// my_free();
 }
+*/
+void c7_test() {
+	void * p0 =  my_malloc(2150);
+	void * p1 =  my_malloc(3843);
+	void * p2 =  my_malloc(4331);
+	void * p3 =  my_malloc(894);
+	void * p4 =  my_malloc(8359);
+	void * p5 =  my_malloc(7788);
+	void * p6 =  my_malloc(33252);
+	void * p7 =  my_malloc(902);
+	void * p8 =  my_malloc(16679);
+	void * p9 =  my_malloc(677);
+	void * p10 = my_malloc(33196);
+	void * p11 = my_malloc(870);
+	void * p12 = my_malloc(1012);
+	void * p13 = my_malloc(651);
+	my_free(p0);
+	my_free(p1);
+	my_free(p2);
+	my_free(p3);
+	my_free(p4);
+	my_free(p5);
+	my_free(p6);
+	my_free(p7);
+	my_free(p8);
+	my_free(p9);
+	my_free(p10);
+	my_free(p11);
+	my_free(p12);
+	my_free(p13);
+	void * heap_top = my_heap_hi();
+	// only one bucket is occupied, size >= 114604
+	int count = 0;
+	for (int i = 0; i < NUMBUCKETS; i++) {
+		if (free_list_array[i]){
+			count++;
+			// assert(free_list_array[i]->size >= 114604);
+		}
+	}
+	assert(count == 1);
+
+	void * p14 = my_malloc(17356);
+	void * p15 = my_malloc(5993);
+	void * p16 = my_malloc(5225);
+	void * p17 = my_malloc(34066);
+	void * p18 = my_malloc(16147);
+	void * p19 = my_malloc(1663);
+	void * p20 = my_malloc(34154);
+	// all free lists are empty.
+	printf("my_heap_hi: %p, heap_top: %p\n", my_heap_hi(), heap_top);
+	assert(my_heap_hi() == heap_top);
+
+}
 
 #ifdef TEST
 int main() {
 	
-	mem_init();
-	big_join_test();
-	mem_deinit();
-	printf("PASSED: big_join_test\n");
+	// mem_init();
+	// big_join_test();
+	// mem_deinit();
+	// printf("PASSED: big_join_test\n");
 	
-	mem_init();
-	small_join_test();
-	mem_deinit();
-	printf("PASSED: small_join_test\n");
+	// mem_init();
+	// small_join_test();
+	// mem_deinit();
+	// printf("PASSED: small_join_test\n");
 	
-	mem_init();
-	small_big_join_test();
-	mem_deinit();
-	printf("PASSED: small_big_join_test\n");
+	// mem_init();
+	// small_big_join_test();
+	// mem_deinit();
+	// printf("PASSED: small_big_join_test\n");
 
-	mem_init();
-	footer_test();
-	mem_deinit();
-	printf("PASSED: footer_test\n");
+	// mem_init();
+	// footer_test();
+	// mem_deinit();
+	// printf("PASSED: footer_test\n");
 
-	mem_init();
-	coalesce_test_previous();
-	mem_deinit();
-	printf("PASSED: coalesce_test_previous\n");
+	// mem_init();
+	// coalesce_test_previous();
+	// mem_deinit();
+	// printf("PASSED: coalesce_test_previous\n");
 
-	mem_init();
-	coalesce_test_forward();
-	mem_deinit();
-	printf("PASSED: coalesce_test_forward\n");
+	// mem_init();
+	// coalesce_test_forward();
+	// mem_deinit();
+	// printf("PASSED: coalesce_test_forward\n");
 
 	// mem_init();
 	// coalesce_test_forward_real();
 	// mem_deinit();
 	// printf("PASSED: coalesce_test_forward_real\n");
+
+	mem_init();
+	c7_test();
+	mem_deinit();
+	printf("PASSED: c7_test\n");
 	
 	printf("ALL TESTS PASSED\n");
 	return 1;

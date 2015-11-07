@@ -252,7 +252,10 @@ void * my_malloc(size_t size) {
         }
         p = next;
         // TODO: free slack?
-        size_t slack = next->size + SIZE_T_SIZE - aligned_size - FOOTER_SIZE;
+        size_t slack = 0;
+        if (next->size + SIZE_T_SIZE > aligned_size + FOOTER_SIZE) {
+          slack = next->size + SIZE_T_SIZE - aligned_size - FOOTER_SIZE;
+        }
         if (slack > sizeof(free_list_t) + FOOTER_SIZE) {
           // create a new element in the free list
           void* next_block = (void *) ((uint8_t*) p + aligned_size+FOOTER_SIZE);
@@ -301,8 +304,10 @@ void * my_malloc(size_t size) {
       *(size_t*)p = aligned_size-SIZE_T_SIZE;
       // set footer size to be 0. When freed, set to be same as header size
       *((size_t*) ((uint8_t*) p + aligned_size)) = 0;//aligned_size-SIZE_T_SIZE;
+    } else {
+      void* footer = (uint8_t*) p + *(size_t*)p + SIZE_T_SIZE;
+      *((size_t*) ((uint8_t*) footer)) = 0;//aligned_size-SIZE_T_SIZE;
     }
-
     return (void *)((char *)p + SIZE_T_SIZE);
   }
 }
