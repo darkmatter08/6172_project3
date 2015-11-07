@@ -234,6 +234,7 @@ void * my_malloc(size_t size) {
   // FOR BUCKETS
   unsigned int free_list_array_index = get_bucket(aligned_size);
   assert(free_list_array_index < NUMBUCKETS);
+  int need_resizing = 0;
   for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
     next = free_list_array[iterate];
     free_list_t * prev = NULL;
@@ -250,6 +251,16 @@ void * my_malloc(size_t size) {
           free_list_array[iterate] = next->next;
         }
         p = next;
+        // TODO: free slack?
+        size_t slack = next->size + SIZE_T_SIZE - aligned_size - FOOTER_SIZE;
+        if (slack > sizeof(free_list_t) + FOOTER_SIZE) {
+          // create a new element in the free list
+          void* next_block = (void *) ((uint8_t*) p + aligned_size+FOOTER_SIZE);
+          my_free_with_size(next_block, slack);
+          // set footer of slack block
+          *((size_t*) ((uint8_t*) next_block + slack)) = slack-SIZE_T_SIZE;
+          need_resizing = 1;
+        }
         break;
       }
 
@@ -286,10 +297,10 @@ void * my_malloc(size_t size) {
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
-    if (need_mem_sbrk) { // TODO: Need to set headers/footers again when blocks are split.
+    if (need_mem_sbrk || need_resizing) { // TODO: Need to set headers/footers again when blocks are split.
       *(size_t*)p = aligned_size-SIZE_T_SIZE;
       // set footer size to be 0. When freed, set to be same as header size
-      *((size_t*) ((uint8_t*) p + aligned_size+SIZE_T_SIZE)) = 0;//aligned_size-SIZE_T_SIZE;
+      *((size_t*) ((uint8_t*) p + aligned_size)) = 0;//aligned_size-SIZE_T_SIZE;
     }
 
     return (void *)((char *)p + SIZE_T_SIZE);
@@ -336,7 +347,7 @@ void my_free(void *ptr) {
         join_blocks(next_block, ptr_header);
       }
     }
-    
+
     // check address of prev block's footer is greater than my_heap_lo().
     void * prev_block = (uint8_t*) ptr_header - FOOTER_SIZE;
     // check footer of previous memory.
