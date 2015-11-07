@@ -274,7 +274,7 @@ void my_free(void *ptr) {
     void * next_block = (void *) ((uint8_t*) ptr_header + aligned_size + FOOTER_SIZE);
     if (next_block < my_heap_hi()) {
       size_t size_next_block = ((free_list_t*) next_block)->size;
-      void * footer_next_block = (void *) ((uint8_t*) next_block + SIZE_T_SIZE + size_next_block + FOOTER_SIZE);
+      void * footer_next_block = (void *) ((uint8_t*) next_block + SIZE_T_SIZE + size_next_block);
       size_t value_footer_next_block = *(size_t*) footer_next_block;
       if (value_footer_next_block) {
         join_blocks(next_block, ptr_header);

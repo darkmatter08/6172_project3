@@ -241,7 +241,7 @@ void coalesce_test_forward() {
 
 	// checks only next memory case, not prev memory case.
 	my_free(p2); // for some reason, doesn't get added to small_free_list
-	assert(small_free_list);
+	assert(big_free_list);
 	my_free(p1);
 
 	// check for auto-joining.
@@ -288,27 +288,42 @@ void coalesce_test_forward_real() {
 
 #ifdef TEST
 int main() {
-	mem_init();
 	
+	mem_init();
 	big_join_test();
+	mem_deinit();
 	printf("PASSED: big_join_test\n");
 	
+	mem_init();
 	small_join_test();
+	mem_deinit();
 	printf("PASSED: small_join_test\n");
 	
+	mem_init();
 	small_big_join_test();
+	mem_deinit();
 	printf("PASSED: small_big_join_test\n");
 
+	mem_init();
 	footer_test();
+	mem_deinit();
 	printf("PASSED: footer_test\n");
 
+	mem_init();
 	coalesce_test_previous();
+	mem_deinit();
 	printf("PASSED: coalesce_test_previous\n");
 
+	mem_init();
 	coalesce_test_forward();
-	printf("PASSED: coalesce_test_forward\n");
-	
 	mem_deinit();
+	printf("PASSED: coalesce_test_forward\n");
+
+	// mem_init();
+	// coalesce_test_forward_real();
+	// mem_deinit();
+	// printf("PASSED: coalesce_test_forward_real\n");
+	
 	printf("ALL TESTS PASSED\n");
 	return 1;
 }
