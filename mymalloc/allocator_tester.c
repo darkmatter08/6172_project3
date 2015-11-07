@@ -15,7 +15,7 @@
 void bucket_0() {
 	mem_reset_brk();
 	my_init();
-    void * ptr1 = my_malloc(30);
+    void * ptr1 = my_malloc(BASESIZE - 200);
     assert(ptr1);
     my_free(ptr1);
     void * ptr2 = get_free_list_pointer(0);
@@ -26,7 +26,7 @@ void bucket_0() {
 void bucket_1() {
 	mem_reset_brk();
 	my_init();
-    void * ptr1 = my_malloc(600);
+    void * ptr1 = my_malloc(BASESIZE + BASESIZE/2);
     assert(ptr1);
     my_free(ptr1);
     void * ptr2 = get_free_list_pointer(1);
@@ -37,10 +37,20 @@ void bucket_1() {
 void use_free_list_0() {
 	mem_reset_brk();
 	my_init();
-    void * ptr1 = my_malloc(600);
+    void * ptr1 = my_malloc(BASESIZE + BASESIZE/3);
     assert(ptr1);
     my_free(ptr1);
-    void * ptr2 = my_malloc(588);
+    void * ptr2 = my_malloc(BASESIZE + BASESIZE/4);
+    assert(ptr2 == ptr1);
+}
+
+void use_free_list_1() {
+	mem_reset_brk();
+	my_init();
+    void * ptr1 = my_malloc(2*BASESIZE + 100);
+    assert(ptr1);
+    my_free(ptr1);
+    void * ptr2 = my_malloc(2*BASESIZE + 50);
     assert(ptr2 == ptr1);
 }
 
@@ -59,6 +69,10 @@ int main() {
     use_free_list_0();
 	mem_deinit();
 	printf("PASSED: Use Free List 0\n");
+    mem_init();
+    use_free_list_1();
+	mem_deinit();
+	printf("PASSED: Use Free List 1\n");
 	printf("ALL TESTS PASSED\n");
 	return 1;
 }

@@ -147,51 +147,32 @@ void * my_malloc(size_t size) {
   free_list_t * next;
   unsigned int free_list_array_index = get_bucket(aligned_size);
   assert(free_list_array_index < NUMBUCKETS);
-  next = free_list_array[free_list_array_index];
-  free_list_t * prev = NULL;
-  //detect_cycle(next);
-  /* variables slack, ptr_heaader, need_clearing are used in the case where we use an
-     from the free list that has a size significantly greater than the size we just
-     stored. */
-  /*size_t slack;
-  void* ptr_header;
-  int need_clearing = 0; */
-  while (next) {
-    size_t next_size = ALIGN(next->size + SIZE_T_SIZE);
-    if(next_size >= aligned_size) {
-      //means we potentially need to free memory for the linked list
-      //need_clearing = 1;
-      //slack = next_size - aligned_size;
-
-      // pop from linked list
-      if(prev) {
-        prev->next = next->next;
-      } else { // first node removed
-        free_list_array[free_list_array_index] = next->next;
+  for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
+    next = free_list_array[iterate];
+    free_list_t * prev = NULL;
+    while (next) {
+      size_t next_size = ALIGN(next->size + SIZE_T_SIZE);
+      if(next_size >= aligned_size) {
+        // pop from linked list
+        if(prev) {
+          prev->next = next->next;
+        } else { // first node removed
+          free_list_array[iterate] = next->next;
+        }
+        p = next;
+        break;
       }
-      p = next;
+
+      if(!(next->next)){
+        break; // no match found
+      }
+      prev = next;
+      next = next->next;
+    }
+    if(p)
       break;
-    }
-
-    if(!(next->next)){
-      break; // no match found
-    }
-    prev = next;
-    next = next->next;
-  } // next is valid and the last element in the linked list
-
-  //ptr_header = ((char *) p) + aligned_size;
-
-  //code to make sure we do change the size stored at p if we are going to add the slack to the free list
-  /*int need_resizing = 1;
-  if(need_clearing == 1){
-    need_resizing = 0; //set to 0 if too slack is too small
-    // this is the code that frees the rest of the already free device
-    if (slack >= BASESIZE){
-      need_resizing = 1;
-      my_free_with_size(ptr_header, slack);
-    }
-    }*/
+  }
+  
   // checks whether we need a mem_sbrk
   unsigned int need_mem_sbrk = !p;
   if (need_mem_sbrk)
