@@ -344,7 +344,7 @@ void realloc_shrink_middle_block() {
 
 	// check header and footer stayed the same.
 	void* header_pointer = (uint8_t*) p4 - SIZE_T_SIZE;
-	assert(*(size_t*) header_pointer == ALIGN(SMALLCONST + BIGCONST));
+	assert(*(size_t*) header_pointer == ALIGN(BIGCONST));
 
 	void* footer_pointer = (uint8_t*) p4 + *(uint8_t*) ((uint8_t*) p4 - SIZE_T_SIZE);
 	assert(*(size_t*) footer_pointer == 0);

@@ -391,10 +391,11 @@ void * my_realloc(void *ptr, size_t size) {
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
   // assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
   void* end_of_block_pointer = (uint8_t*) ptr_header + size_block + FOOTER_SIZE;
-  size_t extraspace = ALIGN(size - (size_block - SIZE_T_SIZE));
+  ssize_t extraspace = size - (size_block - SIZE_T_SIZE);
   if (extraspace <=0)
-    return;
-  if (end_of_block_pointer - 1 == my_heap_hi()) {
+    return ptr;
+  else if (end_of_block_pointer - 1 == my_heap_hi()) {
+    extraspace = ALIGN(extraspace);
     mem_sbrk(extraspace);
     // reset header
     *(size_t*) ptr_header += extraspace;
