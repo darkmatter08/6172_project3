@@ -344,7 +344,7 @@ void my_free(void *ptr) {
   *((size_t*) ((uint8_t*) ptr_header + aligned_size)) = aligned_size-SIZE_T_SIZE;
   //&free_list to get location of free memory
 
-  if (do_coalesce) {
+  if (1) {
     // check header of next memory to compute footer.
     void * next_block = (void *) ((uint8_t*) ptr_header + aligned_size + FOOTER_SIZE);
     if (next_block < my_heap_hi()) {
