@@ -88,7 +88,7 @@ static const malloc_impl_t bad_impl =
 // FOR BUCKETS
 #define SIZELIMIT 500
 #define BASESIZE 500
-#define NUMBUCKETS 7
+#define NUMBUCKETS 10
 #endif
 
 // size is the size of memory without the header

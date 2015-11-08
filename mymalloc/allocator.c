@@ -238,6 +238,9 @@ void * my_malloc(size_t size) {
   unsigned int free_list_array_index = get_bucket(aligned_size);
   assert(free_list_array_index < NUMBUCKETS);
   int need_resizing = 0;
+  unsigned int start = free_list_array_index + 1;
+  if (start == NUMBUCKETS)
+    start = start - 1;
   for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
     next = free_list_array[iterate];
     free_list_t * prev = NULL;
