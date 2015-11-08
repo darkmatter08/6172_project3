@@ -326,7 +326,7 @@ void my_free_with_size(void *ptr_header, size_t aligned_size) {
 void my_free(void *ptr) {
   void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
-  assert(size_block >= sizeof(free_list_t) + FOOTER_SIZE);
+  assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
   size_t aligned_size = ALIGN(size_block);
   // if (aligned_size <= SIZELIMIT){
   //   *((free_list_t *) ptr_header) = (free_list_t) {.next = small_free_list, .size = aligned_size - SIZE_T_SIZE};
