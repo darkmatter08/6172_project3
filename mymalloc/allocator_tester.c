@@ -566,43 +566,106 @@ void c7_test_3() {
 	assert_count(0);
 }
 
+void realloc_expand_final_block() {
+	mem_reset_brk();
+	my_init();
+	do_coalesce = 1;
+
+	void* p1 = my_malloc(BIGCONST);
+
+	void* p2 = my_malloc(SMALLCONST);
+
+	void* heap_top_old = my_heap_hi();
+
+	void* p3 = my_realloc(p2, SMALLCONST + BIGCONST);
+
+	// check pointer stays the same.
+	assert (p2 == p3);
+	
+	// check top of heap only moved by at most BIGCONST
+	void* heap_top_new = my_heap_hi();
+	assert((uint8_t*) heap_top_new - (uint8_t*) heap_top_old <= BIGCONST);
+
+	// check header is updated
+	void* header_pointer = (uint8_t*) p3 - SIZE_T_SIZE;
+	assert(*(size_t*) header_pointer == ALIGN(SMALLCONST + BIGCONST));
+
+	// check footer is updated
+	void* footer_pointer = (uint8_t*) p3 + *(uint8_t*) ((uint8_t*) p3 - SIZE_T_SIZE);
+	assert(*(size_t*) footer_pointer == 0);
+}
+
+void realloc_shrink_middle_block() {
+	mem_reset_brk();
+	my_init();
+	do_coalesce = 1;
+
+	void* p1 = my_malloc(BIGCONST);
+
+	void* p2 = my_malloc(BIGCONST);
+
+	void* p3 = my_malloc(SMALLCONST);
+
+	void* heap_top_old = my_heap_hi();
+
+	void* p4 = my_realloc(p2, SMALLCONST);
+
+	// check pointer stays the same.
+	assert (p2 == p4);
+	
+	// check top of heap didn't move.
+	void* heap_top_new = my_heap_hi();
+	assert(heap_top_new == heap_top_old);
+
+	// check header and footer stayed the same.
+	void* header_pointer = (uint8_t*) p4 - SIZE_T_SIZE;
+	assert(*(size_t*) header_pointer == ALIGN(SMALLCONST + BIGCONST));
+
+	void* footer_pointer = (uint8_t*) p4 + *(uint8_t*) ((uint8_t*) p4 - SIZE_T_SIZE);
+	assert(*(size_t*) footer_pointer == 0);
+
+}
+
 #ifdef TEST
 int main() {
 	
-	// mem_init();
-	// big_join_test();
-	// mem_deinit();
-	// printf("PASSED: big_join_test\n");
-	
-	// mem_init();
-	// small_join_test();
-	// mem_deinit();
-	// printf("PASSED: small_join_test\n");
-	
-	// mem_init();
-	// small_big_join_test();
-	// mem_deinit();
-	// printf("PASSED: small_big_join_test\n");
+	if (0) {
+		// mem_init();
+		// big_join_test();
+		// mem_deinit();
+		// printf("PASSED: big_join_test\n");
+		
+		// mem_init();
+		// small_join_test();
+		// mem_deinit();
+		// printf("PASSED: small_join_test\n");
+		
+		// mem_init();
+		// small_big_join_test();
+		// mem_deinit();
+		// printf("PASSED: small_big_join_test\n");
 
-	// mem_init();
-	// footer_test();
-	// mem_deinit();
-	// printf("PASSED: footer_test\n");
+		// mem_init();
+		// footer_test();
+		// mem_deinit();
+		// printf("PASSED: footer_test\n");
 
-	// mem_init();
-	// coalesce_test_previous();
-	// mem_deinit();
-	// printf("PASSED: coalesce_test_previous\n");
+		// mem_init();
+		// coalesce_test_previous();
+		// mem_deinit();
+		// printf("PASSED: coalesce_test_previous\n");
 
-	// mem_init();
-	// coalesce_test_forward();
-	// mem_deinit();
-	// printf("PASSED: coalesce_test_forward\n");
+		// mem_init();
+		// coalesce_test_forward();
+		// mem_deinit();
+		// printf("PASSED: coalesce_test_forward\n");
 
-	// mem_init();
-	// coalesce_test_forward_real();
-	// mem_deinit();
-	// printf("PASSED: coalesce_test_forward_real\n");
+		// mem_init();
+		// coalesce_test_forward_real();
+		// mem_deinit();
+		// printf("PASSED: coalesce_test_forward_real\n");
+		;
+	}
 
 	mem_init();
 	c7_test();
@@ -618,6 +681,11 @@ int main() {
 	c7_test_3();
 	mem_deinit();
 	printf("PASSED: c7_test_3\n");
+
+	mem_init();
+	realloc_expand_final_block();
+	mem_deinit();
+	printf("PASSED: realloc_expand_final_block\n");
 	
 	printf("ALL TESTS PASSED\n");
 	return 1;

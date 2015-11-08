@@ -375,6 +375,29 @@ void * my_realloc(void *ptr, size_t size) {
   void *newptr;
   size_t copy_size;
 
+  // if ptr is the last allocated block on the stack, just mem_sbrk() 
+  // size-block_size instead. No need to copy data.
+  void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
+  size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
+  // assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
+  void* end_of_block_pointer = (uint8_t*) ptr_header + size_block + FOOTER_SIZE;
+  size_t extraspace = ALIGN(size - (size_block - SIZE_T_SIZE));
+  if (extraspace <=0)
+    return;
+  if (end_of_block_pointer - 1 == my_heap_hi()) {
+    mem_sbrk(extraspace);
+    // reset header
+    *(size_t*) ptr_header += extraspace;
+    // reset footer
+    void* footer_pointer = (uint8_t*) ptr_header + *(size_t*) ptr_header + SIZE_T_SIZE;
+    *(size_t*) footer_pointer = 0; // used block
+    return ptr;
+  } else { // check if following block is free and big enough to accomodate
+  // extraspace. If so, 'coalesce' it into this block and use it. avoids copies
+  // and mem_sbrks.
+    ;
+  }
+
   // Allocate a new chunk of memory, and fail if that allocation fails.
   newptr = my_malloc(size);
   if (NULL == newptr)
