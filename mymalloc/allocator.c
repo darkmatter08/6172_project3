@@ -74,15 +74,21 @@ int my_check() {
 // figures out which bucket to use, takes aligned sizes
 // currently returns a bucket that potentially works
 unsigned int get_bucket(unsigned int aligned_size){
-  if (aligned_size < BASESIZE)
+  /*unsigned int base_size = (1 << BASESIZE);
+  if (aligned_size < base_size)
     return 0;
-  unsigned int rounded_down = aligned_size / BASESIZE;
+  unsigned int rounded_down = aligned_size / base_size;
   unsigned int bucket = 0;
   while(rounded_down >>= 1){
     ++bucket;
   }
-  assert((BASESIZE << bucket) <= aligned_size);
-  assert((BASESIZE << (bucket+1)) > aligned_size);
+  assert((base_size << bucket) <= aligned_size);
+  assert((base_size << (bucket+1)) > aligned_size); */
+  unsigned int exponent = 31 - __builtin_clz(aligned_size);
+  if (exponent < BASESIZE)
+    return 0;
+  unsigned int bucket =  exponent - BASESIZE;
+  //assert(bucket == other_bucket);
   if (bucket + 1 >= NUMBUCKETS)
     return NUMBUCKETS - 1;
   else
@@ -142,28 +148,28 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
     last = b1;
   }
 
-  if (1) {
-    // FOR BUCKETS:
-    // remove both from free list.
-    int i1 = remove_from_free_list(first);
-    int i2 = remove_from_free_list(last);
-    assert(i1);
-    assert(i2);
 
-    // set up a new combined block in the appropriate free list
-    // add 2*SIZE_T_SIZE to get the total size of the memory.
-    size_t size_block = first->size + last->size + (2*SIZE_T_SIZE) + (2*FOOTER_SIZE);
-    // choose free list to add based on size_block
-    free_list_t ** bin = &free_list_array[get_bucket(size_block)];//IS_SMALL(size_block) ? &small_free_list: &big_free_list;
+  // FOR BUCKETS:
+  // remove both from free list.
+  int i1 = remove_from_free_list(first);
+  int i2 = remove_from_free_list(last);
+  assert(i1);
+  assert(i2);
 
-    assert(size_block >= sizeof(free_list_t));
-    // size_t aligned_size = ALIGN(size_block); // use in .size?
-    *first = (free_list_t) {.next = *bin, .size = size_block - SIZE_T_SIZE - FOOTER_SIZE};
-    *bin = first;
-    void * footer = (void *) ((uint8_t*) first + size_block - FOOTER_SIZE);
-    // set footer on joins
-    *(size_t*) footer = size_block - SIZE_T_SIZE - FOOTER_SIZE;
-  }
+  // set up a new combined block in the appropriate free list
+  // add 2*SIZE_T_SIZE to get the total size of the memory.
+  size_t size_block = first->size + last->size + (2*SIZE_T_SIZE) + (2*FOOTER_SIZE);
+  // choose free list to add based on size_block
+  free_list_t ** bin = &free_list_array[get_bucket(size_block)];//IS_SMALL(size_block) ? &small_free_list: &big_free_list;
+
+  assert(size_block >= sizeof(free_list_t));
+  // size_t aligned_size = ALIGN(size_block); // use in .size?
+  *first = (free_list_t) {.next = *bin, .size = size_block - SIZE_T_SIZE - FOOTER_SIZE};
+  *bin = first;
+  void * footer = (void *) ((uint8_t*) first + size_block - FOOTER_SIZE);
+  // set footer on joins
+  *(size_t*) footer = size_block - SIZE_T_SIZE - FOOTER_SIZE;
+
 
   // if (0) {
   //   // if the first block is in the big_free_list, just adjust the size. 
@@ -218,7 +224,8 @@ void * my_malloc(size_t size) {
   
   // FOR BUCKETS
   assert(get_bucket(1) == 0);
-  assert(get_bucket(BASESIZE) == 1);
+  //unsigned int base_size = 1 << BASESIZE; 
+  //assert(get_bucket(base_size) == 1);
 
   int aligned_size = ALIGN(size + SIZE_T_SIZE);
 
@@ -238,9 +245,9 @@ void * my_malloc(size_t size) {
   unsigned int free_list_array_index = get_bucket(aligned_size);
   assert(free_list_array_index < NUMBUCKETS);
   int need_resizing = 0;
-  unsigned int start = free_list_array_index + 1;
+  /*unsigned int start = free_list_array_index + 1;
   if (start == NUMBUCKETS)
-    start = start - 1;
+  start = start - 1;*/
   for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
     next = free_list_array[iterate];
     free_list_t * prev = NULL;
@@ -347,29 +354,29 @@ void my_free(void *ptr) {
   *((size_t*) ((uint8_t*) ptr_header + aligned_size)) = aligned_size-SIZE_T_SIZE;
   //&free_list to get location of free memory
 
-  if (1) {
-    // check header of next memory to compute footer.
-    void * next_block = (void *) ((uint8_t*) ptr_header + aligned_size + FOOTER_SIZE);
-    if (next_block < my_heap_hi()) {
-      size_t size_next_block = ((free_list_t*) next_block)->size;
-      void * footer_next_block = (void *) ((uint8_t*) next_block + SIZE_T_SIZE + size_next_block);
-      size_t value_footer_next_block = *(size_t*) footer_next_block;
-      if (value_footer_next_block) {
-        join_blocks(next_block, ptr_header);
-      }
-    }
 
-    // check address of prev block's footer is greater than my_heap_lo().
-    void * prev_block = (uint8_t*) ptr_header - FOOTER_SIZE;
-    // check footer of previous memory.
-    size_t size_prev_block = *((size_t*) prev_block); // possible invalid memory access
-    if (prev_block > my_heap_lo() && size_prev_block) { // can coalesce back
-      join_blocks(
-        (free_list_t*) ((uint8_t*) ptr_header - FOOTER_SIZE - size_prev_block - SIZE_T_SIZE),
-        ptr_header
-      );
+  // check header of next memory to compute footer.
+  void * next_block = (void *) ((uint8_t*) ptr_header + aligned_size + FOOTER_SIZE);
+  if (next_block < my_heap_hi()) {
+    size_t size_next_block = ((free_list_t*) next_block)->size;
+    void * footer_next_block = (void *) ((uint8_t*) next_block + SIZE_T_SIZE + size_next_block);
+    size_t value_footer_next_block = *(size_t*) footer_next_block;
+    if (value_footer_next_block) {
+      join_blocks(next_block, ptr_header);
     }
   }
+
+  // check address of prev block's footer is greater than my_heap_lo().
+  void * prev_block = (uint8_t*) ptr_header - FOOTER_SIZE;
+  // check footer of previous memory.
+  size_t size_prev_block = *((size_t*) prev_block); // possible invalid memory access
+  if (prev_block > my_heap_lo() && size_prev_block) { // can coalesce back
+    join_blocks(
+        (free_list_t*) ((uint8_t*) ptr_header - FOOTER_SIZE - size_prev_block - SIZE_T_SIZE),
+        ptr_header
+                );
+  }
+
 }
 
 // realloc - Implemented simply in terms of malloc and free
