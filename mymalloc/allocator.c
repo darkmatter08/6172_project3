@@ -46,6 +46,8 @@
 
 #define FOOTER_SIZE SIZE_T_SIZE
 
+void my_free_with_size(void *ptr_header, size_t aligned_size);
+
 // check - This checks our invariant that the size_t header before every
 // block points to either the beginning of the next block, or the end of the
 // heap.
@@ -113,8 +115,8 @@ static inline unsigned int get_bucket(unsigned int aligned_size){
 }
 
 static inline int remove_from_free_list_given(free_list_t * block,
-                                              free_list_t ** list) {
-  free_list_t * next = *list;
+                                              size_t list_index) {
+  free_list_t * next = &free_list_array[list_index];
   free_list_t * prev = NULL;
 
   while (next) {
@@ -122,7 +124,7 @@ static inline int remove_from_free_list_given(free_list_t * block,
       if (prev) {
         prev->next = next->next;
       } else { // first node removed
-        *list = next->next;
+        free_list_array[list_index] = next->next;
       }
       return 1;
     }
@@ -139,7 +141,7 @@ static inline int remove_from_free_list_given(free_list_t * block,
 
 static inline int remove_from_free_list(free_list_t * block) {
   for (int i = 0; i < NUMBUCKETS; i++) {
-    if (remove_from_free_list_given(block, &free_list_array[i]))
+    if (remove_from_free_list_given(block, i))
       return 1;
   }
   return 0;
@@ -158,15 +160,26 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
     last = b1;
   }
 
+  size_t fs = first->size;
+  size_t ls = last->size;
+
+  size_t f_bucket = get_bucket(fs+SIZE_T_SIZE);
+  size_t l_bucket = get_bucket(ls+SIZE_T_SIZE);
+  if (!(remove_from_free_list_given(first, f_bucket) &&
+        remove_from_free_list_given(last, l_bucket))) {
+    
+    assert(0); // should always grab from right bucket. 
+    int i1 = remove_from_free_list(first);
+    assert(i1);
+    int i2 = remove_from_free_list(last);
+    assert(i2);
+  }
   // remove both from free list.
-  int i1 = remove_from_free_list(first);
-  assert(i1);
-  int i2 = remove_from_free_list(last);
-  assert(i2);
+
 
   // set up a new combined block in the appropriate free list
   // add 2*SIZE_T_SIZE to get the total size of the memory.
-  size_t size_block = first->size + last->size + (2*SIZE_T_SIZE) + (2*FOOTER_SIZE);
+  size_t size_block = fs + ls + (2*SIZE_T_SIZE) + (2*FOOTER_SIZE);
   
   // choose free list to add based on size_block
   free_list_t ** bin = &free_list_array[get_bucket(size_block)];
@@ -227,7 +240,7 @@ void * my_malloc(size_t size) {
           free_list_array[iterate] = next->next;
         }
         p = next;
-        
+
         // free slack
         size_t slack = 0;
         if (next->size + SIZE_T_SIZE > aligned_size + FOOTER_SIZE) {
