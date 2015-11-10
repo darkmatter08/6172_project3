@@ -74,16 +74,6 @@ int my_check() {
 // figures out which bucket to use, takes aligned sizes
 // currently returns a bucket that potentially works
 unsigned int get_bucket(unsigned int aligned_size){
-  /*unsigned int base_size = (1 << BASESIZE);
-  if (aligned_size < base_size)
-    return 0;
-  unsigned int rounded_down = aligned_size / base_size;
-  unsigned int bucket = 0;
-  while(rounded_down >>= 1){
-    ++bucket;
-  }
-  assert((base_size << bucket) <= aligned_size);
-  assert((base_size << (bucket+1)) > aligned_size); */
   unsigned int exponent = 31 - __builtin_clz(aligned_size);
   if (exponent < BASESIZE)
     return 0;
@@ -129,10 +119,6 @@ static inline int remove_from_free_list(free_list_t * block) {
       return 1;
   }
   return 0;
-  // if (remove_from_free_list_given(block, &small_free_list))
-  //   return 1;
-  // else 
-  //   return remove_from_free_list_given(block, &big_free_list);
 }
 
 // coalesce two blocks in a free list 
@@ -170,43 +156,9 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   // set footer on joins
   *(size_t*) footer = size_block - SIZE_T_SIZE - FOOTER_SIZE;
 
-
-  // if (0) {
-  //   // if the first block is in the big_free_list, just adjust the size. 
-  //   // delete last from free_list
-  //   if (!IS_SMALL(first->size)) {
-  //     first->size += (last->size + SIZE_T_SIZE); // what about header?
-  //     int i1 = remove_from_free_list(last);
-  //     assert(i1);
-  //   } else { // if first is not in the large free list
-  //     // remove both blocks from the free list
-  //     int i1 = remove_from_free_list(first);
-  //     int i2 = remove_from_free_list(last);
-  //     assert(i1);
-  //     assert(i2);
-      
-  //     // set up a new combined block in either the small or big free_list
-  //     // add 2*SIZE_T_SIZE to get the total size of the memory.
-  //     size_t size_block = first->size + last->size + (2*SIZE_T_SIZE);
-  //     // choose free list to add based on size_block
-  //     free_list_t ** bin = IS_SMALL(size_block) ? &small_free_list: &big_free_list;
-  
-  //     assert(size_block >= sizeof(free_list_t));
-  //     // size_t aligned_size = ALIGN(size_block); // use in .size?
-  //     *first = (free_list_t) {.next = *bin, .size = size_block - SIZE_T_SIZE};
-  //     *bin = first;
-  //   }
-  // }
 }
 
-// init - Initialize the malloc package.  Called once before any other
-// calls are made.  Since this is a very simple implementation, we just
-// return success.
-// int my_init() {
-//   small_free_list = NULL;
-//   big_free_list = NULL;
-//   return 0;
-// }
+
 int my_init() {
   // FOR BUCKETS
   for(int i = 0; i < NUMBUCKETS; i++){
@@ -235,19 +187,11 @@ void * my_malloc(size_t size) {
   // make sure you don't wind up calling it on every malloc.
 
   free_list_t * next;
-  // int is_small = (aligned_size <= SIZELIMIT);
-  // if (is_small)
-  //   next = small_free_list;
-  // else
-  //   next = big_free_list;
 
   // FOR BUCKETS
   unsigned int free_list_array_index = get_bucket(aligned_size);
   assert(free_list_array_index < NUMBUCKETS);
   int need_resizing = 0;
-  /*unsigned int start = free_list_array_index + 1;
-  if (start == NUMBUCKETS)
-  start = start - 1;*/
   for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
     next = free_list_array[iterate];
     free_list_t * prev = NULL;
@@ -338,14 +282,6 @@ void my_free(void *ptr) {
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
   assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
   size_t aligned_size = ALIGN(size_block);
-  // if (aligned_size <= SIZELIMIT){
-  //   *((free_list_t *) ptr_header) = (free_list_t) {.next = small_free_list, .size = aligned_size - SIZE_T_SIZE};
-  //   small_free_list = ptr_header;
-  // }
-  // else {
-  //   *((free_list_t *) ptr_header) = (free_list_t) {.next = big_free_list, .size = aligned_size - SIZE_T_SIZE};
-  //   big_free_list = ptr_header;
-  // }
 
   // FOR BUCKETS:
   my_free_with_size(ptr_header, aligned_size);
