@@ -144,21 +144,29 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   assert(i1);
   assert(i2);
 
-  // set up a new combined block in the appropriate free list
+  size_t new_size = first->size + last->size + 2*SIZE_T_SIZE + FOOTER_SIZE;
+  // find the correct bucket
+  unsigned int free_list_array_index = get_bucket(first->size + last->size + (2*SIZE_T_SIZE) + (FOOTER_SIZE));
+
+  // update our block
+  *first = (free_list_t) {.next = free_list_array[free_list_array_index], .prev = NULL, .size = new_size - SIZE_T_SIZE};
+  free_list_array[free_list_array_index] = first;
+  
+  /*// set up a new combined block in the appropriate free list
   // add 2*SIZE_T_SIZE to get the total size of the memory.
   size_t size_block = first->size + last->size + (2*SIZE_T_SIZE) + (2*FOOTER_SIZE);
   // choose free list to add based on size_block
-  free_list_t ** bin = &free_list_array[get_bucket(size_block)];//IS_SMALL(size_block) ? &small_free_list: &big_free_list;
+  free_list_t ** bin = &free_list_array[get_bucket(size_block - FOOTER_SIZE)];//IS_SMALL(size_block) ? &small_free_list: &big_free_list;
 
   assert(size_block >= sizeof(free_list_t));
   // size_t aligned_size = ALIGN(size_block); // use in .size?
   assert(ALIGN(size_block) == size_block);
   *first = (free_list_t) {.next = *bin, .prev = NULL, .size = size_block - SIZE_T_SIZE - FOOTER_SIZE};
   assert(ALIGN(first->size) == first->size);
-  *bin = first;
-  void * footer = (void *) ((uint8_t*) first + size_block - FOOTER_SIZE);
+  *bin = first; */
+  void * footer = (void *) ((uint8_t*) first + new_size);
   // set footer on joins
-  *(size_t*) footer = size_block - SIZE_T_SIZE - FOOTER_SIZE;
+  *(size_t*) footer = new_size - SIZE_T_SIZE;
 
 }
 
