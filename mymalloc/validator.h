@@ -99,6 +99,18 @@ static int add_range(const malloc_impl_t *impl, range_t **ranges, char *lo,
     *block = (range_t) {.lo = lo, .hi = lo + size - 1, .next = NULL};
     *ranges = block;
   }
+  range_t * next = *ranges;
+  range_t * prev = NULL;
+  int round = 0;
+  while (next) {
+    if (next->lo == lo) { //delete node
+      round = 1;
+      break;
+    }
+    prev = next;
+    next = next->next;
+  }
+  assert(round == 1);
 
   return 1;
 }
@@ -119,22 +131,21 @@ static void remove_range(range_t **ranges, char *lo) {
   } else {
     range_t * next = *ranges;
     range_t * prev = NULL;
-    while (1) {
+    int found = 0;
+    while (next) {
       if (next->lo == lo) { //delete node
         if (!prev)
           *ranges = next->next;
         else
           prev->next = next->next;
         free(next);
+        found = 1;
         break;
-      }
-      if(!(next->next)){
-        assert(0);
-        break; // no match found: should never reach here
       }
       prev = next;
       next = next->next;
     } // next is valid and the last element in the linked list
+    assert(found == 1);
   }
 }
 
@@ -172,9 +183,12 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
 
   // Interpret each operation in the trace in order
   for (i = 0; i < trace->num_ops; i++) {
+    //printf("%d\n", i);
     index = trace->ops[i].index;
     size = trace->ops[i].size;
-
+    for(int robi = 0; robi < 0; robi++){
+      printf("%s\n", "hi");
+    }
     switch (trace->ops[i].type) {
       case ALLOC:  // malloc
 
@@ -194,9 +208,9 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
         // for if the region is copied via realloc.
         // TODO(project3): YOUR CODE HERE
         char * q = p;// = p-1;
-        for (int i = 0; i < size; i++) {
+        for (int ill = 0; ill < size; ill++) {
           // q = q + 1;
-          q[i] = 'B';//0b0; // TODO: dynamic char generation
+          q[ill] = 'B';//0b0; // TODO: dynamic char generation
         }
 
         // Remember region
@@ -228,16 +242,16 @@ int eval_mm_valid(const malloc_impl_t *impl, trace_t *trace, int tracenum) {
           oldsize = size;
         // TODO(project3): YOUR CODE HERE
         char * qp = newp;// = newp-1;
-        for (int i = 0; i < oldsize; i++) {
+        for (int ill = 0; ill < oldsize; ill++) {
           // qp = qp + 1;
-          if (qp[i] != 'B'){
+          if (qp[ill] != 'B'){
             return 0;
           }
         }
 
         // Write chars to expanded region.
-        for (i = oldsize; i < size; i++) {
-          qp[i] = 'B';
+        for (int ill = oldsize; ill < size; ill++) {
+          qp[ill] = 'B';
         }
 
         // Remember region
