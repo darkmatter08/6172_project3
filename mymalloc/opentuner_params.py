@@ -13,3 +13,4 @@ TODO(project3): Implement the parameters of your allocator. Once
 you have at least one other parameters, feel free to remove ALIGNMENT.
 """
 mdriver_manipulator.add_parameter(PowerOfTwoParameter('ALIGNMENT', 8, 8))
+mdriver_manipulator.add_parameter(IntegerParameter('NUMBUCKETS', 2, 128))

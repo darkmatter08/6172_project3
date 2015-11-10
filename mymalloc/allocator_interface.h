@@ -86,6 +86,9 @@ static const malloc_impl_t bad_impl =
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
 #define BASESIZE 9
+#endif
+
+#ifndef NUMBUCKETS
 #define NUMBUCKETS 10
 #endif
 
