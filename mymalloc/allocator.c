@@ -85,7 +85,7 @@ static inline int round_to_nearest_power_of_two(int number) {
 
 // figures out which bucket to use given an aligned_size
 // currently returns a bucket that potentially works
-static inline unsigned int get_bucket(unsigned int aligned_size){
+unsigned int get_bucket(unsigned int aligned_size){
   // Round this 32-bit value to the next highest power of 2
   // unsigned int const v = round_to_nearest_power_of_two(aligned_size);
   // unsigned int r;       // Put the result here. (So v=3 -> r=4; v=8 -> r=8)
@@ -116,7 +116,7 @@ static inline unsigned int get_bucket(unsigned int aligned_size){
 
 static inline int remove_from_free_list_given(free_list_t * block,
                                               size_t list_index) {
-  free_list_t * next = &free_list_array[list_index];
+  free_list_t * next = free_list_array[list_index];
   free_list_t * prev = NULL;
 
   while (next) {
@@ -142,7 +142,7 @@ static inline int remove_from_free_list_given(free_list_t * block,
 static inline int remove_from_free_list(free_list_t * block) {
   for (int i = 0; i < NUMBUCKETS; i++) {
     if (remove_from_free_list_given(block, i))
-      return 1;
+      return i;
   }
   return 0;
 }
@@ -163,16 +163,20 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   size_t fs = first->size;
   size_t ls = last->size;
 
-  size_t f_bucket = get_bucket(fs+SIZE_T_SIZE);
-  size_t l_bucket = get_bucket(ls+SIZE_T_SIZE);
-  if (!(remove_from_free_list_given(first, f_bucket) &&
-        remove_from_free_list_given(last, l_bucket))) {
-    
+  size_t f_bucket = get_bucket(ALIGN(fs+SIZE_T_SIZE+FOOTER_SIZE));
+  size_t l_bucket = get_bucket(ALIGN(ls+SIZE_T_SIZE+FOOTER_SIZE));
+
+  int fr = remove_from_free_list_given(first, f_bucket);
+  if (!fr) {
     assert(0); // should always grab from right bucket. 
     int i1 = remove_from_free_list(first);
-    assert(i1);
+    assert(i1 != -1);
+  }
+  int lr = remove_from_free_list_given(last, l_bucket);
+  if (!lr) {
+    assert(0); // should always grab from right bucket. 
     int i2 = remove_from_free_list(last);
-    assert(i2);
+    assert(i2 != -1);
   }
   // remove both from free list.
 
@@ -219,7 +223,7 @@ void * my_malloc(size_t size) {
 
   free_list_t * next;
 
-  unsigned int free_list_array_index = get_bucket(aligned_size);
+  unsigned int free_list_array_index = get_bucket(aligned_size + FOOTER_SIZE); // NOW INCLUDES FOOTER
   assert(free_list_array_index < NUMBUCKETS);
   int need_resizing = 0;
   /*unsigned int start = free_list_array_index + 1;
@@ -310,7 +314,7 @@ void * my_malloc(size_t size) {
 
 // free block at ptr_header given it's aligned_size
 void my_free_with_size(void *ptr_header, size_t aligned_size) {
-  unsigned int free_list_array_index = get_bucket(aligned_size);
+  unsigned int free_list_array_index = get_bucket(aligned_size + FOOTER_SIZE);
   *((free_list_t *) ptr_header) = (free_list_t)
                                 {.next = free_list_array[free_list_array_index],
                                  .size = aligned_size - SIZE_T_SIZE};
