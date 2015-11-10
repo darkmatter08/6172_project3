@@ -28,7 +28,6 @@ void assert_count(int check_total_size) {
 void c7_test() {
 	mem_reset_brk();
 	my_init();
-	do_coalesce = 1;
 
 
 	void * p0 =  my_malloc(2150);
@@ -80,7 +79,6 @@ void c7_test() {
 void c7_test_2() {
 	mem_reset_brk();
 	my_init();
-	do_coalesce = 1;
 
 
 	void * p0 =  my_malloc(2150);
@@ -294,7 +292,6 @@ void c7_test_3() {
 void realloc_expand_final_block() {
 	mem_reset_brk();
 	my_init();
-	do_coalesce = 1;
 
 	void* p1 = my_malloc(BIGCONST);
 
@@ -323,7 +320,6 @@ void realloc_expand_final_block() {
 void realloc_shrink_middle_block() {
 	mem_reset_brk();
 	my_init();
-	do_coalesce = 1;
 
 	void* p1 = my_malloc(BIGCONST);
 
@@ -353,44 +349,6 @@ void realloc_shrink_middle_block() {
 
 #ifdef TEST
 int main() {
-	
-	if (0) {
-		// mem_init();
-		// big_join_test();
-		// mem_deinit();
-		// printf("PASSED: big_join_test\n");
-		
-		// mem_init();
-		// small_join_test();
-		// mem_deinit();
-		// printf("PASSED: small_join_test\n");
-		
-		// mem_init();
-		// small_big_join_test();
-		// mem_deinit();
-		// printf("PASSED: small_big_join_test\n");
-
-		// mem_init();
-		// footer_test();
-		// mem_deinit();
-		// printf("PASSED: footer_test\n");
-
-		// mem_init();
-		// coalesce_test_previous();
-		// mem_deinit();
-		// printf("PASSED: coalesce_test_previous\n");
-
-		// mem_init();
-		// coalesce_test_forward();
-		// mem_deinit();
-		// printf("PASSED: coalesce_test_forward\n");
-
-		// mem_init();
-		// coalesce_test_forward_real();
-		// mem_deinit();
-		// printf("PASSED: coalesce_test_forward_real\n");
-		;
-	}
 
 	mem_init();
 	c7_test();
