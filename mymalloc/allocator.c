@@ -38,9 +38,6 @@
 // Rounds up to the nearest multiple of ALIGNMENT.
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~(ALIGNMENT-1))
 
-// DEPRECATED WTIH BUCKETS
-// #define IS_SMALL(size) ((size) <= SIZELIMIT)
-
 // The smallest aligned size that will hold a size_t value.
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
@@ -58,7 +55,8 @@ int my_check() {
   p = lo;
   while (lo <= p && p < hi) {
     size_t unaligned_size = *(size_t*)p;
-    assert((ALIGN(unaligned_size)) ==  unaligned_size); // all stored sizes should be aligned
+    // all stored sizes should be aligned
+    assert((ALIGN(unaligned_size)) ==  unaligned_size);
     size = ALIGN(*(size_t*)p + SIZE_T_SIZE);
     p += size + FOOTER_SIZE;
   }
@@ -72,9 +70,7 @@ int my_check() {
   return 0;
 }
 
-// FOR BUCKETS
-// figures out which bucket to use, takes aligned sizes
-// currently returns a bucket that potentially works
+// Returns which bucket to use given an aligned_size
 unsigned int get_bucket(unsigned int aligned_size){
   unsigned int exponent = 31 - __builtin_clz(aligned_size);
   if (exponent < BASESIZE)
@@ -87,46 +83,7 @@ unsigned int get_bucket(unsigned int aligned_size){
     return bucket+1;
 }
 
-static inline int remove_from_free_list_given(free_list_t * block,
-                                              free_list_t ** list) {
-  free_list_t * next = *list;
-  free_list_t * prev = NULL;
-
-  while (next) {
-    if (next == block) {
-      // pop from linked list
-      if (prev) {
-        prev->next = next->next;
-        if(prev->next)
-          (prev->next)->prev = prev;
-      } else { // first node removed
-        *list = next->next;
-        if(*list)
-          (*list)->prev = NULL;
-      }
-      return 1; //break;
-    }
-
-    if(!(next->next)){
-      break; // no match found
-    }
-    prev = next;
-    next = next->next;
-  }
-
-  return 0;
-}
-
-// TODO: Update for buckets
-static inline int remove_from_free_list(free_list_t * block) {
-  // FOR BUCKETS:
-  for (int i = 0; i < NUMBUCKETS; i++) {
-    if (remove_from_free_list_given(block, &free_list_array[i]))
-      return 1;
-  }
-  return 0;
-}
-
+// TODO: Method Specs
 static inline int remove_from_free_list2(free_list_t * block){
   if(block->prev){
     (block->prev)->next = block->next;
@@ -156,75 +113,45 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
     last = b1;
   }
 
-
-  // FOR BUCKETS:
   // remove both from free list.
   int i1 = remove_from_free_list2(first);
-  int i2 = remove_from_free_list2(last);
   assert(i1);
+  int i2 = remove_from_free_list2(last);
   assert(i2);
 
   size_t new_size = first->size + last->size + 2*SIZE_T_SIZE + FOOTER_SIZE;
-  // find the correct bucket
-  unsigned int free_list_array_index = get_bucket(first->size + last->size + (2*SIZE_T_SIZE) + (FOOTER_SIZE));
+  unsigned int free_list_array_index = get_bucket(new_size);
 
   // update our block
   if(free_list_array[free_list_array_index])
     free_list_array[free_list_array_index]->prev = first;
-  *first = (free_list_t) {.next = free_list_array[free_list_array_index], .prev = NULL, .size = new_size - SIZE_T_SIZE};
+
+  *first = (free_list_t) {.next = free_list_array[free_list_array_index],
+                          .prev = NULL, .size = new_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = first;
-  
-  /*// set up a new combined block in the appropriate free list
-  // add 2*SIZE_T_SIZE to get the total size of the memory.
-  size_t size_block = first->size + last->size + (2*SIZE_T_SIZE) + (2*FOOTER_SIZE);
-  // choose free list to add based on size_block
-  free_list_t ** bin = &free_list_array[get_bucket(size_block - FOOTER_SIZE)];//IS_SMALL(size_block) ? &small_free_list: &big_free_list;
 
-  assert(size_block >= sizeof(free_list_t));
-  // size_t aligned_size = ALIGN(size_block); // use in .size?
-  assert(ALIGN(size_block) == size_block);
-  *first = (free_list_t) {.next = *bin, .prev = NULL, .size = size_block - SIZE_T_SIZE - FOOTER_SIZE};
-  assert(ALIGN(first->size) == first->size);
-  *bin = first; */
-  void * footer = (void *) ((uint8_t*) first + new_size);
   // set footer on joins
+  void * footer = (void *) ((uint8_t*) first + new_size);
   *(size_t*) footer = new_size - SIZE_T_SIZE;
-
 }
 
-
+// Call before using the memory system. Initalizes global variables.
 int my_init() {
-  // FOR BUCKETS
   for(int i = 0; i < NUMBUCKETS; i++){
     free_list_array[i] = NULL;
   }
   return 0;
 }
 
-//  malloc - Allocate a block by incrementing the brk pointer.
+//  malloc returns a pointer to a heap location with size bytes free for use.
 //  Always allocate a block whose size is a multiple of the alignment.
 void * my_malloc(size_t size) {
-  // We allocate a little bit of extra memory so that we can store the
-  // size of the block we've allocated.  Take a look at realloc to see
-  // one example of a place where this can come in handy.
   
-  // FOR BUCKETS
-
   assert(get_bucket(1) == 0);
-  //unsigned int base_size = 1 << BASESIZE; 
-  //assert(get_bucket(base_size) == 1);
-
   int aligned_size = ALIGN(size + SIZE_T_SIZE);
-  //assert(aligned_size >= sizeof(free_list_t));
-
   void *p = NULL;
-  // Expands the heap by the given number of bytes and returns a pointer to
-  // the newly-allocated area.  This is a slow call, so you will want to
-  // make sure you don't wind up calling it on every malloc.
-
   free_list_t * next;
 
-  // FOR BUCKETS
   unsigned int free_list_array_index = get_bucket(aligned_size);
   assert(free_list_array_index < NUMBUCKETS);
   int need_resizing = 0;
@@ -234,23 +161,20 @@ void * my_malloc(size_t size) {
 
     while (next) {
       assert(next->prev == prev);
-      // FOR BUCKETS
-      // possible issue: other codebase aligns the next->size + SIZE_T_SIZE
       assert(next->size == ALIGN(next->size));
-      if(next->size + SIZE_T_SIZE >= aligned_size) {
-        // pop from linked list
+      if(next->size + SIZE_T_SIZE >= aligned_size) { // pop from linked list
         if(prev) {
           prev->next = next->next;
           if(prev->next)
             (prev->next)->prev = prev;
         } else { // first node removed
-          // FOR BUCKETS
           free_list_array[iterate] = next->next;
           if(free_list_array[iterate])
             free_list_array[iterate]->prev = NULL;
         }
         p = next;
-        // TODO: free slack?
+
+        // free slack
         size_t slack = 0;
         if (next->size + SIZE_T_SIZE > aligned_size + FOOTER_SIZE) {
           slack = next->size + SIZE_T_SIZE - aligned_size - FOOTER_SIZE;
@@ -272,13 +196,16 @@ void * my_malloc(size_t size) {
       prev = next;
       next = next->next;
     }
-    if(p)
+    if(p) // found a fit
       break;
   }
   // next is valid and the last element in the linked list
   // checks whether we need a mem_sbrk
   int need_mem_sbrk = !p;
   if (need_mem_sbrk){
+    // Expands the heap by the given number of bytes and returns a pointer to
+    // the newly-allocated area.  This is a slow call, so you will want to
+    // make sure you don't wind up calling it on every malloc.
     p = mem_sbrk(aligned_size+FOOTER_SIZE);
   }
 
@@ -288,62 +215,62 @@ void * my_malloc(size_t size) {
     // the client code know that we weren't able to allocate memory.
     return NULL;
   } else {
-    // We store the size of the block we've allocated in the first
-    // SIZE_T_SIZE bytes.
-    //if (need_update)
-    //*(size_t*)p = size; //aligned_size-SIZE_T_SIZE;W
-
+    // TODO: Need to set headers/footers again when blocks are split.
+    if (need_mem_sbrk || need_resizing) {
+      assert(ALIGN(aligned_size - SIZE_T_SIZE) == aligned_size - SIZE_T_SIZE);
+      // We store the size of the block we've allocated in the first
+      // SIZE_T_SIZE bytes.
+      *(size_t*)p = aligned_size-SIZE_T_SIZE;
+      // set footer size to be 0. When freed, set to be same as header size
+      *((size_t*) ((uint8_t*) p + aligned_size)) = 0;
+    } else {
+      void* footer = (uint8_t*) p + *(size_t*)p + SIZE_T_SIZE;
+      *((size_t*) ((uint8_t*) footer)) = 0;
+    }
     // Then, we return a pointer to the rest of the block of memory,
     // which is at least size bytes long.  We have to cast to uint8_t
     // before we try any pointer arithmetic because voids have no size
     // and so the compiler doesn't know how far to move the pointer.
     // Since a uint8_t is always one byte, adding SIZE_T_SIZE after
     // casting advances the pointer by SIZE_T_SIZE bytes.
-    if (need_mem_sbrk || need_resizing) { // TODO: Need to set headers/footers again when blocks are split.
-      assert(ALIGN(aligned_size - SIZE_T_SIZE) == aligned_size - SIZE_T_SIZE);
-      *(size_t*)p = aligned_size-SIZE_T_SIZE;
-      // set footer size to be 0. When freed, set to be same as header size
-      *((size_t*) ((uint8_t*) p + aligned_size)) = 0;//aligned_size-SIZE_T_SIZE;
-    } else {
-      void* footer = (uint8_t*) p + *(size_t*)p + SIZE_T_SIZE;
-      *((size_t*) ((uint8_t*) footer)) = 0;//aligned_size-SIZE_T_SIZE;
-    }
     return (void *)((char *)p + SIZE_T_SIZE);
   }
 }
 
-// free given size to free
+// free block at ptr_header given it's aligned_size
 void my_free_with_size(void *ptr_header, size_t aligned_size) {
   unsigned int free_list_array_index = get_bucket(aligned_size);
   if(free_list_array[free_list_array_index])
     free_list_array[free_list_array_index]->prev = (free_list_t *) ptr_header;
-  *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .prev = NULL, .size = aligned_size - SIZE_T_SIZE};
+  // set up free_list_t at ptr_header
+  *((free_list_t *) ptr_header) = (free_list_t)
+                                {.next = free_list_array[free_list_array_index],
+                                 .prev = NULL, .size = aligned_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = ptr_header;
+  // TODO: set footer here and remove from outside calls. 
 }
 
 // free - Freeing a block does nothing.
 void my_free(void *ptr) {
   void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
-  if (size_block >= sizeof(free_list_t)){
+  if (size_block >= sizeof(free_list_t)) {
 
     assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
     size_t aligned_size = ALIGN(size_block);
     assert(aligned_size == size_block);
 
-    // FOR BUCKETS:
     my_free_with_size(ptr_header, aligned_size);
 
     // set footer
     *((size_t*) ((uint8_t*) ptr_header + aligned_size)) = aligned_size-SIZE_T_SIZE;
-    //&free_list to get location of free memory
-
 
     // check header of next memory to compute footer.
     void * next_block = (void *) ((uint8_t*) ptr_header + aligned_size + FOOTER_SIZE);
     if (next_block < my_heap_hi()) {
       size_t size_next_block = ((free_list_t*) next_block)->size;
-      void * footer_next_block = (void *) ((uint8_t*) next_block + SIZE_T_SIZE + size_next_block);
+      void * footer_next_block = (void *) ((uint8_t*) next_block
+                                           + SIZE_T_SIZE + size_next_block);
       size_t value_footer_next_block = *(size_t*) footer_next_block;
       if (value_footer_next_block) {
         join_blocks(next_block, ptr_header);
@@ -356,15 +283,17 @@ void my_free(void *ptr) {
     size_t size_prev_block = *((size_t*) prev_block); // possible invalid memory access
     if (prev_block > my_heap_lo() && size_prev_block) { // can coalesce back
       join_blocks(
-          (free_list_t*) ((uint8_t*) ptr_header - FOOTER_SIZE - size_prev_block - SIZE_T_SIZE),
-          ptr_header
-                  );
+        (free_list_t*) ((uint8_t*) prev_block - size_prev_block - SIZE_T_SIZE),
+        ptr_header
+      );
     }
   }
 }
 
-// realloc - Implemented simply in terms of malloc and free
-// if change in size is not too big, just change size of header?
+// Returns a new pointer to the resized block with the data preserved.
+// The returned pointer may be the same as *ptr when size < ptr's size, or when
+// *ptr was the last allocated block on the heap.
+// Otherwise just uses with a malloc, memcpy, and free.
 void * my_realloc(void *ptr, size_t size) {
   void *newptr;
   size_t copy_size;
@@ -373,7 +302,6 @@ void * my_realloc(void *ptr, size_t size) {
   // size-block_size instead. No need to copy data.
   void* ptr_header = ((char*)ptr) - SIZE_T_SIZE;
   size_t size_block = *((size_t*) (ptr_header)) + SIZE_T_SIZE;
-  // assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
   void* end_of_block_pointer = (uint8_t*) ptr_header + size_block + FOOTER_SIZE;
   ssize_t extraspace = size - (size_block - SIZE_T_SIZE);
   if (extraspace <=0)
@@ -387,9 +315,10 @@ void * my_realloc(void *ptr, size_t size) {
     void* footer_pointer = (uint8_t*) ptr_header + *(size_t*) ptr_header + SIZE_T_SIZE;
     *(size_t*) footer_pointer = 0; // used block
     return ptr;
-  } else { // check if following block is free and big enough to accomodate
-  // extraspace. If so, 'coalesce' it into this block and use it. avoids copies
-  // and mem_sbrks.
+  } else {
+    // check if following block is free and big enough to accomodate
+    // extraspace. If so, 'coalesce' it into this block and use it. avoids copies
+    // and mem_sbrks.
     ;
   }
 

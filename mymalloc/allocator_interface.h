@@ -85,24 +85,17 @@ static const malloc_impl_t bad_impl =
 
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
-// FOR BUCKETS
-#define SIZELIMIT 500
 #define BASESIZE 9
 #define NUMBUCKETS 10
 #endif
 
-// size is the size of memory without the header
+// size is the size of memory without the header or footer.
 typedef struct free_list_t {
   size_t size; 
   struct free_list_t* next;
   struct free_list_t* prev;
 } free_list_t;
 
-// free_list_t * small_free_list;
-// free_list_t * big_free_list;
-
 free_list_t * free_list_array[NUMBUCKETS];
-
-int do_coalesce;
 
 #endif  // _ALLOCATOR_INTERFACE_H
