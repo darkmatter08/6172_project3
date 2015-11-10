@@ -280,7 +280,8 @@ void * my_malloc(size_t size) {
 // free given size to free
 void my_free_with_size(void *ptr_header, size_t aligned_size) {
   unsigned int free_list_array_index = get_bucket(aligned_size);
-  free_list_array[free_list_array_index]->prev = (free_list_t *) ptr_header;
+  if(free_list_array[free_list_array_index])
+    free_list_array[free_list_array_index]->prev = (free_list_t *) ptr_header;
   *((free_list_t *) ptr_header) = (free_list_t) {.next = free_list_array[free_list_array_index], .prev = NULL, .size = aligned_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = ptr_header;
 }
@@ -293,6 +294,7 @@ void my_free(void *ptr) {
 
     assert(size_block + FOOTER_SIZE >= sizeof(free_list_t) + FOOTER_SIZE);
     size_t aligned_size = ALIGN(size_block);
+    assert(aligned_size == size_block);
 
     // FOR BUCKETS:
     my_free_with_size(ptr_header, aligned_size);
