@@ -97,8 +97,12 @@ static inline int remove_from_free_list_given(free_list_t * block,
       // pop from linked list
       if (prev) {
         prev->next = next->next;
+        if(prev->next)
+          (prev->next)->prev = prev;
       } else { // first node removed
         *list = next->next;
+        if(*list)
+          (*list)->prev = NULL;
       }
       return 1; //break;
     }
@@ -123,6 +127,22 @@ static inline int remove_from_free_list(free_list_t * block) {
   return 0;
 }
 
+static inline int remove_from_free_list2(free_list_t * block){
+  if(block->prev){
+    (block->prev)->next = block->next;
+    if(block->next){
+      (block->next)->prev = block->prev;
+    }
+  }
+  else{
+    if(block->next)
+      (block->next)->prev = NULL;
+    unsigned int bucket = get_bucket(block->size + SIZE_T_SIZE);
+    free_list_array[bucket] = block->next;
+  }
+  return 1;
+}
+
 // coalesce two blocks in a free list 
 void join_blocks(free_list_t * b1, free_list_t * b2) {
   // figure out which block comes first, before coalescing.
@@ -139,8 +159,8 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
 
   // FOR BUCKETS:
   // remove both from free list.
-  int i1 = remove_from_free_list(first);
-  int i2 = remove_from_free_list(last);
+  int i1 = remove_from_free_list2(first);
+  int i2 = remove_from_free_list2(last);
   assert(i1);
   assert(i2);
 
@@ -149,6 +169,8 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   unsigned int free_list_array_index = get_bucket(first->size + last->size + (2*SIZE_T_SIZE) + (FOOTER_SIZE));
 
   // update our block
+  if(free_list_array[free_list_array_index])
+    free_list_array[free_list_array_index]->prev = first;
   *first = (free_list_t) {.next = free_list_array[free_list_array_index], .prev = NULL, .size = new_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = first;
   
@@ -211,6 +233,7 @@ void * my_malloc(size_t size) {
     free_list_t * prev = NULL;
 
     while (next) {
+      assert(next->prev == prev);
       // FOR BUCKETS
       // possible issue: other codebase aligns the next->size + SIZE_T_SIZE
       assert(next->size == ALIGN(next->size));
@@ -218,9 +241,13 @@ void * my_malloc(size_t size) {
         // pop from linked list
         if(prev) {
           prev->next = next->next;
+          if(prev->next)
+            (prev->next)->prev = prev;
         } else { // first node removed
           // FOR BUCKETS
           free_list_array[iterate] = next->next;
+          if(free_list_array[iterate])
+            free_list_array[iterate]->prev = NULL;
         }
         p = next;
         // TODO: free slack?
