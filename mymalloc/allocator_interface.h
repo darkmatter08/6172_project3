@@ -95,6 +95,7 @@ static const malloc_impl_t bad_impl =
 typedef struct free_list_t {
   size_t size; 
   struct free_list_t* next;
+  struct free_list_t* prev;
 } free_list_t;
 
 // free_list_t * small_free_list;
