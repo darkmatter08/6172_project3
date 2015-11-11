@@ -1,4 +1,4 @@
-/*
+/*5238b06dac5b6a728d4bb4ab06f893ca0db651db
  * validator.h - 6.172 Malloc Validator
  *
  * Validates a malloc/free/realloc implementation.
@@ -91,22 +91,10 @@ static int add_range(const malloc_impl_t *impl, range_t **ranges, char *lo,
   } else {
     // printf("in else");// check this block is only hit once per trace.
     range_t *block = malloc(sizeof(range_t));
+    assert(block);
     *block = (range_t) {.lo = lo, .hi = lo + size - 1, .next = NULL};
     *ranges = block;
   }
-  range_t * next = *ranges;
-  range_t * prev = NULL;
-  int round = 0;
-  while (next) {
-    if (next->lo == lo) { //delete node
-      round = 1;
-      break;
-    }
-    prev = next;
-    next = next->next;
-  }
-  assert(round == 1);
-
   return 1;
 }
 
@@ -118,29 +106,25 @@ static void remove_range(range_t **ranges, char *lo) {
   // Iterate the linked list until you find the range with a matching lo
   // payload and remove it.  Remember to properly handle the case where the
   // payload is in the first node, and to free the node after unlinking it.
-  if (!lo){
-    return;
-  } else if (!ranges) {
-    assert(0);
-  } else {
-    range_t * next = *ranges;
-    range_t * prev = NULL;
-    int found = 0;
-    while (next) {
-      if (next->lo == lo) { //delete node
-        if (!prev)
-          *ranges = next->next;
-        else
-          prev->next = next->next;
-        free(next);
-        found = 1;
-        break;
-      }
-      prev = next;
-      next = next->next;
-    } // next is valid and the last element in the linked list
-    assert(found == 1);
-  }
+  range_t * next = *ranges;
+  range_t * prev = NULL;
+  int found = 0;
+  while (next) {
+    if (next->lo == lo) { //delete node
+      if (!prev)
+        *ranges = next->next;
+      else
+        prev->next = next->next;
+      free(next);
+      found = 1;
+      break;
+    }
+    prev = next;
+    next = next->next;
+  } // next is valid and the last element in the linked list
+  assert(found == 1);// The following routines manipulate the range list, which keeps
+  
+
 }
 
 // clear_ranges - free all of the range records for a trace

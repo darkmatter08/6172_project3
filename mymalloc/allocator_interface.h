@@ -83,6 +83,8 @@ static const malloc_impl_t bad_impl =
   .free = &bad_free, .check = &bad_check, .reset_brk = &bad_reset_brk,
   .heap_lo = &bad_heap_lo, .heap_hi = &bad_heap_hi};
 
+// parameters chosen using open tuner
+
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
 #endif
