@@ -13,6 +13,7 @@
 #define BIGCONST 640
 #define SMALLCONST 100
 
+// helper function for tests that checks that coalescing works optimally in certain cases
 void assert_count(int check_total_size) {
 	int count = 0;
 	for (int i = 0; i < NUMBUCKETS; i++) {
@@ -25,6 +26,7 @@ void assert_count(int check_total_size) {
 	assert(count == 1);
 }
 
+// runs part of trace c7
 void c7_test() {
 	mem_reset_brk();
 	my_init();
@@ -76,6 +78,7 @@ void c7_test() {
 	assert(my_heap_hi() == heap_top);
 }
 
+// runs part of trace c7
 void c7_test_2() {
 	mem_reset_brk();
 	my_init();
@@ -158,6 +161,7 @@ void c7_test_2() {
 	assert(my_heap_hi() == heap_top);
 }
 
+// runs part of trace c7
 void c7_test_3() {
     c7_test_2();
 
@@ -289,6 +293,7 @@ void c7_test_3() {
 	assert_count(0);
 }
 
+// checks behavior of realloc on last allocated block
 void realloc_expand_final_block() {
 	mem_reset_brk();
 	my_init();
@@ -317,6 +322,7 @@ void realloc_expand_final_block() {
 	assert(*(size_t*) footer_pointer == 0);
 }
 
+// test behvior of realloc on something in the middle
 void realloc_shrink_middle_block() {
 	mem_reset_brk();
 	my_init();
@@ -347,6 +353,7 @@ void realloc_shrink_middle_block() {
 
 }
 
+// runs all tests
 #ifdef TEST
 int main() {
 
