@@ -118,6 +118,8 @@ class MdriverTuner(MeasurementInterface):
     else:
         make_cmd = 'make partial_clean mdriver DEBUG=0 PARAMS="{0}"'.format(gcc_params)
 
+    print make_cmd
+
     # Make the executable, on failure return 0 perfidx.
     compile_result = self.call_program(make_cmd, limit = self.args.make_timeout)
     if compile_result['returncode'] != 0:

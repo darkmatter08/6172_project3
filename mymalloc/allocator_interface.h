@@ -85,11 +85,14 @@ static const malloc_impl_t bad_impl =
 
 #ifndef ALIGNMENT
 #define ALIGNMENT 8
-#define BASESIZE 9
+#endif
+
+#ifndef BASESIZE
+#define BASESIZE 8
 #endif
 
 #ifndef NUMBUCKETS
-#define NUMBUCKETS 10
+#define NUMBUCKETS 9
 #endif
 
 // size is the size of memory without the header or footer.
