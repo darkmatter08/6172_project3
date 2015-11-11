@@ -58,7 +58,7 @@ int my_check() {
     // all stored sizes should be aligned
     assert((ALIGN(unaligned_size)) ==  unaligned_size);
     size = ALIGN(*(size_t*)p + SIZE_T_SIZE);
-    p += size + FOOTER_SIZE;
+    p += size + FOOTER_SIZE; //modified to include footers
   }
 
   if (p != hi) {
@@ -76,15 +76,13 @@ unsigned int get_bucket(unsigned int aligned_size){
   if (exponent < BASESIZE)
     return 0;
   unsigned int bucket =  exponent - BASESIZE;
-  //assert(bucket == other_bucket);
   if (bucket + 1 >= NUMBUCKETS)
     return NUMBUCKETS - 1;
   else
     return bucket+1;
 }
 
-// TODO: Method Specs
-static inline int remove_from_free_list2(free_list_t * block){
+static inline void remove_from_free_list(free_list_t * block){
   if(block->prev){
     (block->prev)->next = block->next;
     if(block->next){
@@ -97,13 +95,11 @@ static inline int remove_from_free_list2(free_list_t * block){
     unsigned int bucket = get_bucket(block->size + SIZE_T_SIZE);
     free_list_array[bucket] = block->next;
   }
-  return 1;
 }
 
-// coalesce two blocks in a free list 
+// coalesce two adjacent blocks and add result into free list
 void join_blocks(free_list_t * b1, free_list_t * b2) {
   // figure out which block comes first, before coalescing.
-  // free_list_t * first = (uint64_t) b1 < (uint64_t) b2 ? b1: b2;
   free_list_t * first; free_list_t * last;
   if (b1 < b2) {
     first = b1;
@@ -114,12 +110,10 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
   }
 
   // remove both from free list.
-  int i1 = remove_from_free_list2(first);
-  assert(i1);
-  int i2 = remove_from_free_list2(last);
-  assert(i2);
+  remove_from_free_list(first);
+  remove_from_free_list(last);
 
-  size_t new_size = first->size + last->size + 2*SIZE_T_SIZE + FOOTER_SIZE;
+  size_t new_size = first->size + last->size + 2*SIZE_T_SIZE + FOOTER_SIZE; //includes header
   unsigned int free_list_array_index = get_bucket(new_size);
 
   // update our block
@@ -130,7 +124,7 @@ void join_blocks(free_list_t * b1, free_list_t * b2) {
                           .prev = NULL, .size = new_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = first;
 
-  // set footer on joins
+  // set footer correctly
   void * footer = (void *) ((uint8_t*) first + new_size);
   *(size_t*) footer = new_size - SIZE_T_SIZE;
 }
@@ -147,18 +141,17 @@ int my_init() {
 //  Always allocate a block whose size is a multiple of the alignment.
 void * my_malloc(size_t size) {
   
-  assert(get_bucket(1) == 0);
   int aligned_size = ALIGN(size + SIZE_T_SIZE);
   void *p = NULL;
   free_list_t * next;
 
   unsigned int free_list_array_index = get_bucket(aligned_size);
-  assert(free_list_array_index < NUMBUCKETS);
   int need_resizing = 0;
+
+  //searches every bucket with appropriate size for a free block that works
   for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
     next = free_list_array[iterate];
     free_list_t * prev = NULL;
-
     while (next) {
       assert(next->prev == prev);
       assert(next->size == ALIGN(next->size));
