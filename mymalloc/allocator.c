@@ -146,18 +146,16 @@ void * my_malloc(size_t size) {
   free_list_t * next;
 
   unsigned int free_list_array_index = get_bucket(aligned_size);
-  int need_resizing = 0;
+  int need_resizing = 0; //indicator variable for vailidity of the header
 
   //searches every bucket with appropriate size for a free block that works
   for(unsigned int iterate = free_list_array_index; iterate < NUMBUCKETS; iterate++){
     next = free_list_array[iterate];
     free_list_t * prev = NULL;
     while (next) {
-      assert(next->prev == prev);
-      assert(next->size == ALIGN(next->size));
-      if(next->size + SIZE_T_SIZE >= aligned_size) { // pop from linked list
+      if(next->size + SIZE_T_SIZE >= aligned_size) { 
         if(prev) {
-          prev->next = next->next;
+          prev->next = next->next; //pop from doubly linked list
           if(prev->next)
             (prev->next)->prev = prev;
         } else { // first node removed
@@ -167,7 +165,7 @@ void * my_malloc(size_t size) {
         }
         p = next;
 
-        // free slack
+        // free the rest of the block
         size_t slack = 0;
         if (next->size + SIZE_T_SIZE > aligned_size + FOOTER_SIZE) {
           slack = next->size + SIZE_T_SIZE - aligned_size - FOOTER_SIZE;
@@ -178,7 +176,7 @@ void * my_malloc(size_t size) {
           my_free_with_size(next_block, slack);
           // set footer of slack block
           *((size_t*) ((uint8_t*) next_block + slack)) = slack-SIZE_T_SIZE;
-          need_resizing = 1;
+          need_resizing = 1; //header of allocated block is no longer valid
         }
         break;
       }
@@ -197,20 +195,16 @@ void * my_malloc(size_t size) {
   int need_mem_sbrk = !p;
   if (need_mem_sbrk){
     // Expands the heap by the given number of bytes and returns a pointer to
-    // the newly-allocated area.  This is a slow call, so you will want to
-    // make sure you don't wind up calling it on every malloc.
+    // the newly-allocated area. 
     p = mem_sbrk(aligned_size+FOOTER_SIZE);
   }
 
-
-  if (p == (void *)-1) { // TODO: move check as part of mem_sbrk only
+  if (p == (void *)-1) {
     // Whoops, an error of some sort occurred.  We return NULL to let
     // the client code know that we weren't able to allocate memory.
     return NULL;
   } else {
-    // TODO: Need to set headers/footers again when blocks are split.
     if (need_mem_sbrk || need_resizing) {
-      assert(ALIGN(aligned_size - SIZE_T_SIZE) == aligned_size - SIZE_T_SIZE);
       // We store the size of the block we've allocated in the first
       // SIZE_T_SIZE bytes.
       *(size_t*)p = aligned_size-SIZE_T_SIZE;
@@ -240,7 +234,6 @@ void my_free_with_size(void *ptr_header, size_t aligned_size) {
                                 {.next = free_list_array[free_list_array_index],
                                  .prev = NULL, .size = aligned_size - SIZE_T_SIZE};
   free_list_array[free_list_array_index] = ptr_header;
-  // TODO: set footer here and remove from outside calls. 
 }
 
 // free - Freeing a block does nothing.
